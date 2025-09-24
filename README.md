@@ -1,3 +1,1 @@
-# delivery
-
-A new Flutter project.
+flutter pub add firebase_core
