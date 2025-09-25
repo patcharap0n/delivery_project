@@ -42,10 +42,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('กำลังลงทะเบียน...')));
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
       var db = FirebaseFirestore.instance;
       var data = {
         'First name': _firstNameController.text,
@@ -57,22 +53,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
         'Role': widget.role,
       };
       db.collection('User').doc().set(data);
-<<<<<<< Updated upstream
-=======
-      // print แบบ readable
-      print('Role: ${widget.role}');
-      print('ชื่อ: ${_firstNameController.text}');
-      print('สกุล: ${_lastNameController.text}');
-      print('เบอร์: ${_phoneController.text}');
-      print('รหัสผ่าน: ${_passwordController.text}');
-
-      print('ที่อยู่ทั้งหมด:');
-      for (var addr in _addresses) {
-        print('- $addr');
-      }
-
-      print('รูปภาพ: ${_image?.path}');
->>>>>>> Stashed changes
     }
     // TODO: ส่งข้อมูลไป Firebase Auth / Firestore / Storage
   }
