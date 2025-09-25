@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:latlong2/latlong.dart' as latlong2;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmap;
 
 class RegisterUserPage extends StatefulWidget {
@@ -52,6 +53,10 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
         'Image': _image?.path,
         'Role': widget.role,
       };
+<<<<<<< Updated upstream
+=======
+      db.collection('User').doc().set(data);
+>>>>>>> Stashed changes
       // print แบบ readable
       print('Role: ${widget.role}');
       print('ชื่อ: ${_firstNameController.text}');
