@@ -4,6 +4,7 @@ import 'package:delivery/page/RegisterRiderPage.dart';
 import 'package:delivery/page/RegisterUserPage.dart';
 import 'package:delivery/page/home_User_page.dart';
 import 'package:delivery/page/home_rider_page.dart';
+import 'package:delivery/page/home_user_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -196,8 +197,26 @@ class _LoginPageState extends State<LoginPage> {
     if (userquery.docs.isNotEmpty) {
       var userData = userquery.docs.first.data();
       String role = userData['Role'];
+<<<<<<< Updated upstream
       if (role == "User") {
         Get.to(Userhome());
+=======
+
+      if (role == "User") {
+        Get.to(Userhome());
+      } else {
+        Get.snackbar("Error", "Role ไม่ถูกต้อง");
+      }
+    } else {
+      Get.snackbar("Login Failed", "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+    }
+    if (riderquery.docs.isNotEmpty) {
+      var userData = userquery.docs.first.data();
+      String role = userData['Role'];
+
+      if (role == "Rider") {
+        Get.to(HomeRider());
+>>>>>>> Stashed changes
       } else {
         Get.snackbar("Error", "Role ไม่ถูกต้อง");
       }
