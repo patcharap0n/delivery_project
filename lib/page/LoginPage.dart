@@ -2,7 +2,11 @@ import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery/page/RegisterRiderPage.dart';
 import 'package:delivery/page/RegisterUserPage.dart';
+<<<<<<< Updated upstream
 import 'package:delivery/page/home_page.dart';
+=======
+import 'package:delivery/page/home_user_page.dart';
+>>>>>>> Stashed changes
 import 'package:delivery/page/home_rider_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -185,10 +189,18 @@ class _LoginPageState extends State<LoginPage> {
     var riderRef = db.collection('riders');
 
     var userquery = await userRef
+<<<<<<< Updated upstream
+=======
+        .where("Phone", isEqualTo: _phoneController.text.trim())
+        .where("Password", isEqualTo: _passwordController.text.trim())
+        .get();
+    var riderquery = await riderRef
+>>>>>>> Stashed changes
         .where("Phone", isEqualTo: _phoneController.text.trim())
         .where("Password", isEqualTo: _passwordController.text.trim())
         .get();
 
+<<<<<<< Updated upstream
     var riderquery = await riderRef
         .where("Phone", isEqualTo: _phoneController.text.trim())
         .where("Password", isEqualTo: _passwordController.text.trim())
@@ -206,9 +218,29 @@ class _LoginPageState extends State<LoginPage> {
     }
     if (riderquery.docs.isNotEmpty) {
       var userData = riderquery.docs.first.data();
+=======
+    if (userquery.docs.isNotEmpty) {
+      var userData = userquery.docs.first.data();
+>>>>>>> Stashed changes
       String role = userData['Role'];
 
       if (role == "User") {
+<<<<<<< Updated upstream
+=======
+        Get.to(HomeUser());
+      } else {
+        Get.snackbar("Error", "Role ไม่ถูกต้อง");
+      }
+    } else {
+      Get.snackbar("Login Failed", "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+    }
+    if (riderquery.docs.isNotEmpty) {
+      var userData = riderquery.docs.first.data();
+      String role = userData['Role'];
+      log("Login success => $role");
+
+      if (role == "Rider") {
+>>>>>>> Stashed changes
         Get.to(HomeRider());
       } else {
         Get.snackbar("Error", "Role ไม่ถูกต้อง");
