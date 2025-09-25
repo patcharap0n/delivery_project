@@ -42,19 +42,24 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
         context,
       ).showSnackBar(const SnackBar(content: Text('กำลังลงทะเบียน...')));
 
-      // ส่งข้อมูลไป backend / Firebase
+      // print แบบ readable
       print('Role: ${widget.role}');
       print('ชื่อ: ${_firstNameController.text}');
       print('สกุล: ${_lastNameController.text}');
       print('เบอร์: ${_phoneController.text}');
       print('รหัสผ่าน: ${_passwordController.text}');
-      print('ที่อยู่: $_addresses');
-      print('รูปภาพ: $_image');
 
-      // TODO: ส่งข้อมูลไป Firebase Auth / Firestore / Storage
+      print('ที่อยู่ทั้งหมด:');
+      for (var addr in _addresses) {
+        print('- $addr');
+      }
+
+      print('รูปภาพ: ${_image?.path}');
     }
+     // TODO: ส่งข้อมูลไป Firebase Auth / Firestore / Storage
   }
 
+ 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
