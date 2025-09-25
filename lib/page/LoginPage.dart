@@ -2,6 +2,7 @@ import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery/page/RegisterRiderPage.dart';
 import 'package:delivery/page/RegisterUserPage.dart';
+import 'package:delivery/page/home_page.dart';
 import 'package:delivery/page/home_rider_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -181,20 +182,33 @@ class _LoginPageState extends State<LoginPage> {
     var db = FirebaseFirestore.instance;
 
     var userRef = db.collection('User');
+    var riderRef = db.collection('riders');
 
-    var query = await userRef
+    var userquery = await userRef
         .where("Phone", isEqualTo: _phoneController.text.trim())
         .where("Password", isEqualTo: _passwordController.text.trim())
         .get();
 
-    if (query.docs.isNotEmpty) {
-      var userData = query.docs.first.data();
+    var riderquery = await riderRef
+        .where("Phone", isEqualTo: _phoneController.text.trim())
+        .where("Password", isEqualTo: _passwordController.text.trim())
+        .get();
+
+    if (userquery.docs.isNotEmpty) {
+      var userData = userquery.docs.first.data();
       String role = userData['Role'];
-      log("Login success => $role");
 
       if (role == "User") {
-        Get.to(HomeRider());
-      } else if (role == "Rider") {
+        Get.to(HomeUser());
+      } else {
+        Get.snackbar("Error", "Role ไม่ถูกต้อง");
+      }
+    }
+    if (riderquery.docs.isNotEmpty) {
+      var userData = riderquery.docs.first.data();
+      String role = userData['Role'];
+
+      if (role == "User") {
         Get.to(HomeRider());
       } else {
         Get.snackbar("Error", "Role ไม่ถูกต้อง");
