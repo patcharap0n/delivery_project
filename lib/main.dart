@@ -1,7 +1,18 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:delivery/firebase_options.dart';
 import 'package:delivery/page/LoginPage.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' as Get;
+import 'package:get/get_core/src/get_main.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Connnect to FireStore
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+  );
   runApp(const MainApp());
 }
 
@@ -10,8 +21,6 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: LoginPage(),
-    );
+    return Get.MaterialApp(home: LoginPage());
   }
 }
