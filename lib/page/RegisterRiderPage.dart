@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -18,8 +17,7 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _vehicleNumberController =
-      TextEditingController();
+  final TextEditingController _vehicleNumberController = TextEditingController();
 
   File? _riderImage; // รูปผู้ขับ
   File? _vehicleImage; // รูปยานพาหนะ
@@ -47,17 +45,6 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
 
   void register() {
     if (_formKey.currentState!.validate()) {
-      var db = FirebaseFirestore.instance;
-      var data = {
-        'Role': widget.role,
-        'Name': _nameController.text,
-        'Phone': _phoneController.text,
-        'Password': _passwordController.text,
-        'VehicleNumber': _vehicleNumberController.text,
-        'RiderImage': _riderImage.toString(),
-        'VehicleImage': _vehicleImage.toString(),
-      };
-      db.collection('riders').doc().set(data);
       // ข้อมูลพร้อมส่งไป backend / Firebase
       print('Role: ${widget.role}'); // Rider
       print('ชื่อ: ${_nameController.text}');
@@ -90,27 +77,22 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _phoneController,
-                  decoration: const InputDecoration(
-                    labelText: 'หมายเลขโทรศัพท์',
-                  ),
+                  decoration: const InputDecoration(labelText: 'หมายเลขโทรศัพท์'),
                   keyboardType: TextInputType.phone,
-                  validator: (value) =>
-                      value!.isEmpty ? 'กรุณากรอกเบอร์โทร' : null,
+                  validator: (value) => value!.isEmpty ? 'กรุณากรอกเบอร์โทร' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordController,
                   decoration: const InputDecoration(labelText: 'รหัสผ่าน'),
                   obscureText: true,
-                  validator: (value) =>
-                      value!.length < 6 ? 'รหัสผ่านต้องอย่างน้อย 6 ตัว' : null,
+                  validator: (value) => value!.length < 6 ? 'รหัสผ่านต้องอย่างน้อย 6 ตัว' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _vehicleNumberController,
                   decoration: const InputDecoration(labelText: 'ทะเบียนรถ'),
-                  validator: (value) =>
-                      value!.isEmpty ? 'กรุณากรอกทะเบียนรถ' : null,
+                  validator: (value) => value!.isEmpty ? 'กรุณากรอกทะเบียนรถ' : null,
                 ),
                 const SizedBox(height: 16),
 
@@ -149,10 +131,7 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
                       backgroundColor: const Color(0x9C0560FA),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: const Text(
-                      'ลงทะเบียน',
-                      style: TextStyle(color: Colors.white),
-                    ),
+                    child: const Text('ลงทะเบียน', style: TextStyle(color: Colors.white)),
                   ),
                 ),
               ],

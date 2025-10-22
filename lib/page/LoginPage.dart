@@ -1,20 +1,8 @@
-import 'dart:developer';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery/page/RegisterRiderPage.dart';
 import 'package:delivery/page/RegisterUserPage.dart';
-<<<<<<< HEAD
-<<<<<<< Updated upstream
 import 'package:delivery/page/home_page.dart';
-=======
-import 'package:delivery/page/home_user_page.dart';
->>>>>>> Stashed changes
-=======
->>>>>>> parent of 8489e7b (โค๊ดง๊อยๆบอบบางสัสๆ)
 import 'package:delivery/page/home_rider_page.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -25,7 +13,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   @override
@@ -57,25 +45,22 @@ class _LoginPageState extends State<LoginPage> {
 
                 // ช่องใส่อีเมล์
                 TextFormField(
-                  controller: _phoneController,
+                  controller: _emailController,
                   decoration: InputDecoration(
-                    labelText: 'เบอร์โทรศัพท์',
+                    labelText: 'Email',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: [
-                    FilteringTextInputFormatter
-                        .digitsOnly, // ✅ พิมพ์ได้เฉพาะตัวเลข
-                    LengthLimitingTextInputFormatter(10), // ✅ จำกัดแค่ 10 หลัก
-                  ],
+                  keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'กรุณากรอกเบอร์โทรศัพท์';
+                      return 'กรุณากรอกอีเมล';
                     }
-                    if (!RegExp(r'^0[0-9]{9}$').hasMatch(value)) {
-                      return 'กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง';
+                    if (!RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    ).hasMatch(value)) {
+                      return 'กรุณากรอกอีเมลให้ถูกต้อง';
                     }
                     return null;
                   },
@@ -108,7 +93,14 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: login,
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        // ถ้า validate ผ่าน
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('กำลังเข้าสู่ระบบ...')),
+                        );
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0x9C0560FA),
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -184,30 +176,12 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-
-  void login() async {
-    var db = FirebaseFirestore.instance;
-
-    var userRef = db.collection('User');
-
-<<<<<<< HEAD
     var userquery = await userRef
-<<<<<<< Updated upstream
-=======
-        .where("Phone", isEqualTo: _phoneController.text.trim())
-        .where("Password", isEqualTo: _passwordController.text.trim())
-        .get();
-    var riderquery = await riderRef
->>>>>>> Stashed changes
         .where("Phone", isEqualTo: _phoneController.text.trim())
         .where("Password", isEqualTo: _passwordController.text.trim())
         .get();
 
-<<<<<<< Updated upstream
     var riderquery = await riderRef
-=======
-    var query = await userRef
->>>>>>> parent of 8489e7b (โค๊ดง๊อยๆบอบบางสัสๆ)
         .where("Phone", isEqualTo: _phoneController.text.trim())
         .where("Password", isEqualTo: _passwordController.text.trim())
         .get();
@@ -215,7 +189,6 @@ class _LoginPageState extends State<LoginPage> {
     if (query.docs.isNotEmpty) {
       var userData = query.docs.first.data();
       String role = userData['Role'];
-<<<<<<< HEAD
 
       if (role == "User") {
         Get.to(HomeUser());
@@ -225,30 +198,14 @@ class _LoginPageState extends State<LoginPage> {
     }
     if (riderquery.docs.isNotEmpty) {
       var userData = riderquery.docs.first.data();
-=======
-    if (userquery.docs.isNotEmpty) {
-      var userData = userquery.docs.first.data();
->>>>>>> Stashed changes
       String role = userData['Role'];
 
       if (role == "User") {
-<<<<<<< Updated upstream
-=======
-        Get.to(HomeUser());
-=======
-      log("Login success => $role");
-
-      if (role == "User") {
-        Get.to(HomeRider());
-      } else if (role == "Rider") {
-        Get.to(HomeRider());
->>>>>>> parent of 8489e7b (โค๊ดง๊อยๆบอบบางสัสๆ)
       } else {
         Get.snackbar("Error", "Role ไม่ถูกต้อง");
       }
     } else {
       Get.snackbar("Login Failed", "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
-<<<<<<< HEAD
     }
     if (riderquery.docs.isNotEmpty) {
       var userData = riderquery.docs.first.data();
@@ -256,15 +213,12 @@ class _LoginPageState extends State<LoginPage> {
       log("Login success => $role");
 
       if (role == "Rider") {
->>>>>>> Stashed changes
         Get.to(HomeRider());
       } else {
         Get.snackbar("Error", "Role ไม่ถูกต้อง");
       }
     } else {
       Get.snackbar("Login Failed", "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
-=======
->>>>>>> parent of 8489e7b (โค๊ดง๊อยๆบอบบางสัสๆ)
     }
   }
 }
