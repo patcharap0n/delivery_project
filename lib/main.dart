@@ -1,12 +1,17 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery/page/LoginPage.dart';
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
-=======
 import 'package:flutter/material.dart' as Get;
-import 'package:get/get_core/src/get_main.dart';
->>>>>>> parent of 37aaa2e (Merge pull request #7 from patcharap0n/done)
+import 'package:get/get_navigation/src/root/get_material_app.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+  );
   runApp(const MainApp());
 }
 
@@ -15,12 +20,6 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-<<<<<<< HEAD
-    return MaterialApp(
-      home: LoginPage(),
-    );
-=======
-    return Get.MaterialApp(home: LoginPage());
->>>>>>> parent of 37aaa2e (Merge pull request #7 from patcharap0n/done)
+    return GetMaterialApp(home: LoginPage());
   }
 }
