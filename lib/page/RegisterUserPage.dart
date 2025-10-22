@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery/page/GPSandMapPage.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -43,6 +42,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('กำลังลงทะเบียน...')));
+<<<<<<< HEAD
       var db = FirebaseFirestore.instance;
       var data = {
         'First name': _firstNameController.text,
@@ -57,6 +57,9 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
 =======
       db.collection('User').doc().set(data);
 >>>>>>> Stashed changes
+=======
+
+>>>>>>> parent of 8489e7b (โค๊ดง๊อยๆบอบบางสัสๆ)
       // print แบบ readable
       print('Role: ${widget.role}');
       print('ชื่อ: ${_firstNameController.text}');
@@ -71,9 +74,10 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
 
       print('รูปภาพ: ${_image?.path}');
     }
-    // TODO: ส่งข้อมูลไป Firebase Auth / Firestore / Storage
+     // TODO: ส่งข้อมูลไป Firebase Auth / Firestore / Storage
   }
 
+ 
   @override
   Widget build(BuildContext context) {
     return Scaffold(

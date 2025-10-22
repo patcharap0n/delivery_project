@@ -2,11 +2,14 @@ import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery/page/RegisterRiderPage.dart';
 import 'package:delivery/page/RegisterUserPage.dart';
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 import 'package:delivery/page/home_page.dart';
 =======
 import 'package:delivery/page/home_user_page.dart';
 >>>>>>> Stashed changes
+=======
+>>>>>>> parent of 8489e7b (โค๊ดง๊อยๆบอบบางสัสๆ)
 import 'package:delivery/page/home_rider_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -186,8 +189,8 @@ class _LoginPageState extends State<LoginPage> {
     var db = FirebaseFirestore.instance;
 
     var userRef = db.collection('User');
-    var riderRef = db.collection('riders');
 
+<<<<<<< HEAD
     var userquery = await userRef
 <<<<<<< Updated upstream
 =======
@@ -202,13 +205,17 @@ class _LoginPageState extends State<LoginPage> {
 
 <<<<<<< Updated upstream
     var riderquery = await riderRef
+=======
+    var query = await userRef
+>>>>>>> parent of 8489e7b (โค๊ดง๊อยๆบอบบางสัสๆ)
         .where("Phone", isEqualTo: _phoneController.text.trim())
         .where("Password", isEqualTo: _passwordController.text.trim())
         .get();
 
-    if (userquery.docs.isNotEmpty) {
-      var userData = userquery.docs.first.data();
+    if (query.docs.isNotEmpty) {
+      var userData = query.docs.first.data();
       String role = userData['Role'];
+<<<<<<< HEAD
 
       if (role == "User") {
         Get.to(HomeUser());
@@ -228,11 +235,20 @@ class _LoginPageState extends State<LoginPage> {
 <<<<<<< Updated upstream
 =======
         Get.to(HomeUser());
+=======
+      log("Login success => $role");
+
+      if (role == "User") {
+        Get.to(HomeRider());
+      } else if (role == "Rider") {
+        Get.to(HomeRider());
+>>>>>>> parent of 8489e7b (โค๊ดง๊อยๆบอบบางสัสๆ)
       } else {
         Get.snackbar("Error", "Role ไม่ถูกต้อง");
       }
     } else {
       Get.snackbar("Login Failed", "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+<<<<<<< HEAD
     }
     if (riderquery.docs.isNotEmpty) {
       var userData = riderquery.docs.first.data();
@@ -247,6 +263,8 @@ class _LoginPageState extends State<LoginPage> {
       }
     } else {
       Get.snackbar("Login Failed", "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+=======
+>>>>>>> parent of 8489e7b (โค๊ดง๊อยๆบอบบางสัสๆ)
     }
   }
 }
