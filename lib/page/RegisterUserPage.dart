@@ -4,7 +4,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:latlong2/latlong.dart' as latlong2;
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmap;
 
 class RegisterUserPage extends StatefulWidget {
@@ -53,6 +52,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
         'Image': _image?.path,
         'Role': widget.role,
       };
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
       db.collection('User').doc().set(data);
@@ -60,6 +60,8 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
 =======
 
 >>>>>>> parent of 8489e7b (โค๊ดง๊อยๆบอบบางสัสๆ)
+=======
+>>>>>>> parent of 37aaa2e (Merge pull request #7 from patcharap0n/done)
       // print แบบ readable
       print('Role: ${widget.role}');
       print('ชื่อ: ${_firstNameController.text}');

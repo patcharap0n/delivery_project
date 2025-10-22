@@ -201,6 +201,7 @@ class _LoginPageState extends State<LoginPage> {
       String role = userData['Role'];
 
       if (role == "User") {
+<<<<<<< HEAD
       } else {
         Get.snackbar("Error", "Role ไม่ถูกต้อง");
       }
@@ -213,6 +214,8 @@ class _LoginPageState extends State<LoginPage> {
       log("Login success => $role");
 
       if (role == "Rider") {
+=======
+>>>>>>> parent of 37aaa2e (Merge pull request #7 from patcharap0n/done)
         Get.to(HomeRider());
       } else {
         Get.snackbar("Error", "Role ไม่ถูกต้อง");
