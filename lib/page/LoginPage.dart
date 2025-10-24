@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery/page/RegisterRiderPage.dart';
 import 'package:delivery/page/RegisterUserPage.dart';
-import 'package:delivery/page/home_page.dart';
+import 'package:delivery/page/home_user_page.dart';
 import 'package:delivery/page/home_rider_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get_core/src/get_main.dart';
@@ -193,7 +193,10 @@ class _LoginPageState extends State<LoginPage> {
       var userData = userquery.docs.first.data();
       String role = userData['Role'];
       if (role == "User") {
-        Get.to(HomeUser());
+        var userDoc = userquery.docs.first;
+        String uid = userDoc.id; // <<== นี่คือ uid ของเอกสารใน Firestore
+        // จากนั้นส่งไปหน้าส่งพัสดุ
+        Get.to(() => HomeUser(uid: uid));
       }
     } else if (riderquery.docs.isNotEmpty) {
       var userData = riderquery.docs.first.data();
