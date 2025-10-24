@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:delivery/page/LoginPage.dart';
 import 'package:delivery/page/create_shipment_page.dart';
 import 'package:delivery/page/received_items_page.dart';
 import 'package:delivery/page/transit_items_page.dart';
@@ -55,6 +56,24 @@ class _HomeUserState extends State<HomeUser> {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text(
+          "หน้าหลัก User", // <-- เปลี่ยน Title เล็กน้อย
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.black),
+            tooltip: 'กลับไปหน้า Login',
+            onPressed: () {
+              Get.offAll(() => const LoginPage());
+            },
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
