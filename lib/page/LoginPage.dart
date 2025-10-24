@@ -194,7 +194,7 @@ class _LoginPageState extends State<LoginPage> {
       String role = userData['Role'];
       if (role == "User") {
         // Get.to(HomeUser()); // <--- แบบเดิม (ผิด)
-        Get.offAll(() => const HomeUser()); // <--- แก้เป็นแบบนี้
+        Get.offAll(() => HomeUser()); // <--- แก้เป็นแบบนี้
       }
     } else if (riderquery.docs.isNotEmpty) {
       var userData = riderquery.docs.first.data();
