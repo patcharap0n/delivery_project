@@ -29,7 +29,9 @@ class _DummyPackageData {
 // --------------------------------------------------
 
 class TransitItemsPage extends StatefulWidget {
-  const TransitItemsPage({super.key, required String uid});
+  final String uid;
+  final String phone;
+  TransitItemsPage({super.key, required this.uid, required this.phone});
 
   @override
   State<TransitItemsPage> createState() => _TransitItemsPageState();
@@ -40,27 +42,20 @@ class _TransitItemsPageState extends State<TransitItemsPage> {
   // (StreamBuilder จะจัดการ state ให้เรา)
 
   // --- 3. สร้าง "ท่อ" (Stream) ---
+
   late final Stream<QuerySnapshot> _itemsStream;
 
   @override
   void initState() {
     super.initState();
 
-    // (Backend) TODO: ดึง UID จริง
-    // (สำคัญ: ถ้า uid เป็น null ต้องจัดการด้วย)
-    String? uid = FirebaseAuth.instance.currentUser?.uid;
-
-    if (uid != null) {
-      // 4. ให้ "ท่อ" นี้เชื่อมต่อกับ Firebase
-      _itemsStream = FirebaseFirestore.instance
-          .collection('shipments')
-          .where('senderId', isEqualTo: uid) // ค้นหาจาก senderId
-          .where('status', whereIn: ['pending', 'accepted', 'inTransit'])
-          .snapshots(); // <-- .snapshots() คือหัวใจสำคัญ (แปลว่า "ติดตามตลอด")
-    } else {
-      // ถ้าไม่เจอ uid (ยังไม่ login?)
-      _itemsStream = const Stream.empty(); // สร้างท่อว่างๆ
-    }
+    // สร้าง Stream
+    _itemsStream = FirebaseFirestore.instance
+        .collection('shipment')
+        .where('receiverId', isEqualTo: widget.uid)
+        .where('status', whereIn: ['pending', 'accepted', 'inTransit'])
+        .snapshots();
+    print(widget.uid);
   }
 
   // --- 5. ลบ _fetchTransitItems() ทิ้งไป ---
@@ -76,7 +71,7 @@ class _TransitItemsPageState extends State<TransitItemsPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "ของที่กำลังส่ง",
+          "ของที่ได้รับ",
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
@@ -119,16 +114,12 @@ class _TransitItemsPageState extends State<TransitItemsPage> {
                   doc.data() as Map<String, dynamic>? ??
                   {}; // <-- ใช้ Map ว่างเป็น default
 
-              // (Backend) TODO: ตรวจสอบชื่อ Field ให้ตรงกับ Firestore ของคุณ
               final item = _DummyPackageData(
                 packageId: doc.id,
-                itemDescription: data['packageDetails'] ?? 'N/A',
-                receiverName: data['receiverName'] ?? 'N/A', // (ตัวอย่าง)
-                receiverPhone: data['receiverPhone'] ?? 'N/A', // (ตัวอย่าง)
-                address:
-                    (data['deliveryAddress']
-                        as Map<String, dynamic>?)?['fullAddress'] ??
-                    'N/A',
+                itemDescription: data['details'] ?? 'N/A',
+                receiverName: data['receiverAddress'] ?? 'N/A', // (ตัวอย่าง)
+                receiverPhone: data['receiverAddress'] ?? 'N/A', // (ตัวอย่าง)
+                address: data['receiverStateCountry'] ?? 'N/A',
                 status: data['status'] ?? 'N/A',
                 riderName: data['riderName'] ?? 'N/A', // (ตัวอย่าง)
                 riderPhone: data['riderPhone'] ?? 'N/A', // (ตัวอย่าง)

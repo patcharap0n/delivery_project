@@ -71,11 +71,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
           }
         });
       }
-
-      debugPrint("✅ โหลดข้อมูลผู้ส่งเสร็จสิ้น");
-    } catch (e) {
-      debugPrint("❌ โหลดข้อมูลจาก Firestore ผิดพลาด: $e");
-    }
+    } catch (e) {}
   }
 
   Future<void> _searchReceiverByPhone() async {

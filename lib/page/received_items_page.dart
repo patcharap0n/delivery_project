@@ -66,7 +66,7 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "ของที่ได้รับ", // <-- Title
+          "ของที่กำลังส่ง", // <-- Title
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
