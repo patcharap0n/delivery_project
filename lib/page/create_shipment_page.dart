@@ -216,6 +216,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
 
       final shipmentData = {
         'senderId': widget.uid,
+        // 'senderName': ,
         'receiverId': _foundReceiverId,
         'senderPhone': _senderPhoneController.text.toString(),
         'senderAddress': _selectedSenderAddress,

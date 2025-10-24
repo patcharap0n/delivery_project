@@ -1,96 +1,94 @@
-import 'package:delivery/page/LoginPage.dart';
+import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // <-- 1. Import Firestore
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-// --- Import หน้าใหม่เข้ามา ---
+// --- หน้าที่ใช้ไปต่อ ---
+import 'package:delivery/page/LoginPage.dart';
 import 'package:delivery/page/new_jobs_page.dart';
 import 'package:delivery/page/current_job_page.dart';
 import 'package:delivery/page/edit_rider_profile_page.dart';
-// (เช็ค Path ให้ถูกต้อง)
 
-// --- MODIFIED --- (เปลี่ยนเป็น StatefulWidget)
 class HomeRider extends StatefulWidget {
-  final String uid; // uid ของ Rider
-  const HomeRider({super.key, required this.uid});
+  final String riderId;
+
+  const HomeRider({super.key, required this.riderId});
 
   @override
   State<HomeRider> createState() => _HomeRiderState();
 }
 
 class _HomeRiderState extends State<HomeRider> {
-  // --- END MODIFIED ---
+  String? riderGreetingName;
+  String? riderName;
+  String? riderImageUrl;
+  bool _isLoading = true;
 
-  // --- 2. ย้ายตัวแปรมาไว้ใน State ---
-  String riderGreetingName = "Rider"; // ค่าเริ่มต้น
-  String riderName = "Rider"; // ค่าเริ่มต้น
-  String riderImageUrl =
-      "https://static.wikia.nocookie.net/minecraft_gamepedia/images/f/fe/Villager_face.png"; // URL เริ่มต้นใหม่ (อันเก่าเสีย)
-  // --- END ---
-
-  // --- 3. เพิ่ม initState และ _loadUserData ---
   @override
   void initState() {
     super.initState();
-    _loadUserData(); // เรียกฟังก์ชันดึงข้อมูลตอนเริ่มต้น
+    _fetchRiderData();
   }
 
-  Future<void> _loadUserData() async {
+  /// โหลดข้อมูล Rider จาก Firestore Database
+  Future<void> _fetchRiderData() async {
     try {
-      var db = FirebaseFirestore.instance;
-      // ดึงข้อมูลจาก Collection "User" (สมมติว่า Rider เก็บใน Collection เดียวกัน)
-      var userRef = db.collection('User');
+      final snapshot = await FirebaseFirestore.instance
+          .collection('riders')
+          .doc(widget.riderId)
+          .get();
 
-      final userdata = await userRef.doc(widget.uid).get(); // ใช้ widget.uid
+      if (!snapshot.exists) throw Exception("ไม่พบ Rider");
 
-      if (userdata.exists) {
-        final data = userdata.data();
+      final data = snapshot.data() as Map<String, dynamic>;
+      final String? urlFromFirestore = data['RiderImageUrl'];
 
-        // ดึงชื่อ (ปรับ Field ตาม Firestore ของคุณ)
-        final firstName = data?['First_name'] ?? 'Rider';
-        final lastName = data?['Last_name'] ?? '';
-
-        // ดึง URL รูปภาพ (ปรับ Field ตาม Firestore ของคุณ)
-        final imageUrlFromDb = data?['Image'];
-
+      if (mounted) {
         setState(() {
-          riderName = "$firstName $lastName".trim();
-          riderGreetingName = firstName;
-          if (imageUrlFromDb != null && imageUrlFromDb.isNotEmpty) {
-            riderImageUrl = imageUrlFromDb;
-          }
+          riderName = data['Name'] ?? "Rider";
+          riderGreetingName = data['Name'] ?? "Rider";
+          riderImageUrl =
+              (urlFromFirestore != null && urlFromFirestore.isNotEmpty)
+              ? urlFromFirestore
+              : _getDefaultImageUrl();
+          _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint("❌ เกิดข้อผิดพลาดในการดึงข้อมูล Rider: $e");
+      print("Error fetching rider data: $e");
+      if (mounted) {
+        setState(() {
+          riderName = "เกิดข้อผิดพลาด";
+          riderGreetingName = "Rider";
+          riderImageUrl = _getDefaultImageUrl();
+          _isLoading = false;
+        });
+      }
     }
   }
-  // --- END ---
+
+  /// URL รูป default กรณีไม่เจอหรือโหลดผิดพลาด
+  String _getDefaultImageUrl() {
+    return 'https://www.example.com/default_rider.png';
+  }
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF005FFF); // สีหลัก
+    const Color primaryColor = Color(0xFF005FFF);
+
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text(
-          "หน้าหลัก Rider",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 1,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.black),
-            tooltip: 'กลับไปหน้า Login',
-            onPressed: () {
-              Get.offAll(() => const LoginPage());
-            },
-          ),
-        ],
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -99,9 +97,9 @@ class _HomeRiderState extends State<HomeRider> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 20),
-                Text(
-                  "สวัสดี $riderGreetingName", // <-- ใช้ตัวแปร State
-                  style: const TextStyle(
+                const Text(
+                  "สวัสดี Rider",
+                  style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
@@ -114,11 +112,7 @@ class _HomeRiderState extends State<HomeRider> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
-                _buildWelcomeBanner(
-                  primaryColor,
-                  riderName, // <-- ใช้ตัวแปร State
-                  riderImageUrl, // <-- ใช้ตัวแปร State
-                ),
+                _buildWelcomeBanner(primaryColor, riderName!, riderImageUrl!),
                 const SizedBox(height: 20),
                 _buildRiderNavigationButtons(context, primaryColor),
               ],
@@ -129,10 +123,9 @@ class _HomeRiderState extends State<HomeRider> {
     );
   }
 
-  // --- Helper Widgets (ย้ายมาอยู่ใน State) ---
   Widget _buildWelcomeBanner(
     Color primaryColor,
-    String userName, // (เปลี่ยนชื่อ parameter เป็น userName เพื่อให้ใช้ซ้ำได้)
+    String userName,
     String imageUrl,
   ) {
     return Container(
@@ -156,7 +149,7 @@ class _HomeRiderState extends State<HomeRider> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "สวัสดี $userName", // <-- ใช้ parameter
+                  "สวัสดี $userName",
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -173,37 +166,27 @@ class _HomeRiderState extends State<HomeRider> {
             ),
           ),
           const SizedBox(width: 16),
-          GestureDetector(
-            onTap: () {
-              // --- 4. MODIFIED --- (ส่ง uid ไปด้วย)
-              Get.to(() => EditRiderProfilePage(uid: widget.uid));
-              // --- END MODIFIED ---
-            },
-            child: CircleAvatar(
-              radius: 32,
-              backgroundColor: Colors.white,
-              // ใช้ Image.network พร้อม errorBuilder
-              child: ClipOval(
-                child: Image.network(
-                  imageUrl, // <-- ใช้ parameter
-                  fit: BoxFit.cover,
-                  width: 64,
-                  height: 64,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Icon(
-                      Icons.person, // ไอคอนเริ่มต้นถ้าไม่มีรูป
-                      size: 40,
-                      color: primaryColor,
-                    );
-                  },
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const CircularProgressIndicator(
-                      strokeWidth: 2,
+          CircleAvatar(
+            radius: 32,
+            backgroundColor: Colors.white,
+            child: ClipOval(
+              child: Image.network(
+                imageUrl,
+                width: 64,
+                height: 64,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Image.network(_getDefaultImageUrl());
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(
+                    child: CircularProgressIndicator(
                       color: Colors.white,
-                    );
-                  },
-                ),
+                      strokeWidth: 2,
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -212,6 +195,7 @@ class _HomeRiderState extends State<HomeRider> {
     );
   }
 
+  // --- ปุ่มเมนู 2 ปุ่ม ---
   Widget _buildRiderNavigationButtons(
     BuildContext context,
     Color primaryColor,
@@ -224,9 +208,7 @@ class _HomeRiderState extends State<HomeRider> {
             label: "งานใหม่",
             primaryColor: primaryColor,
             onPressed: () {
-              // --- 5. MODIFIED --- (ส่ง uid ไปด้วย)
-              Get.to(() => NewJobsPage(uid: widget.uid));
-              // --- END MODIFIED ---
+              Get.to(() => NewJobsPage(uid: widget.riderId));
             },
           ),
         ),
@@ -237,9 +219,7 @@ class _HomeRiderState extends State<HomeRider> {
             label: "งานที่ทำอยู่",
             primaryColor: primaryColor,
             onPressed: () {
-              // --- 6. MODIFIED --- (ส่ง uid ไปด้วย)
-              Get.to(() => CurrentJobPage(uid: widget.uid));
-              // --- END MODIFIED ---
+              Get.to(() => CurrentJobPage(uid: widget.riderId));
             },
           ),
         ),
@@ -247,6 +227,7 @@ class _HomeRiderState extends State<HomeRider> {
     );
   }
 
+  // --- ปุ่มทั่วไป (ใช้ซ้ำได้) ---
   Widget _buildMenuButton({
     required BuildContext context,
     required String label,
@@ -270,5 +251,4 @@ class _HomeRiderState extends State<HomeRider> {
       ),
     );
   }
-  // --- END ---
 }

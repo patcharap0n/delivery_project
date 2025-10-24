@@ -15,37 +15,55 @@ class HomeUser extends StatefulWidget {
 }
 
 class _HomeUserState extends State<HomeUser> {
-  String userGreetingName = "User"; // ค่าเริ่มต้น
-  String userName = "User"; // ค่าเริ่มต้น
-  final String userImageUrl =
-      "https://static.wikia.nocookie.net/minecraft/images/f/fe/Villager_face.png/revision/latest"; // รูป Villager (ใช้ URL ชั่วคราว)
+  String? userGreetingName;
+  String? userName;
+  String? userImageUrl;
+  bool _isLoading = true;
+
+  final String defaultImageUrl =
+      'https://static.wikia.nocookie.net/minecraft/images/f/fe/Villager_face.png/revision/latest';
 
   @override
   void initState() {
     super.initState();
-    _loadUserData(); // เรียกฟังก์ชันดึงข้อมูล
+    _fetchUserData();
   }
 
-  Future<void> _loadUserData() async {
+  Future<void> _fetchUserData() async {
     try {
-      var db = FirebaseFirestore.instance;
-      var userRef = db.collection('User');
+      final snapshot = await FirebaseFirestore.instance
+          .collection('User')
+          .doc(widget.uid)
+          .get();
 
-      final userdata = await userRef.doc(widget.uid).get();
+      if (!snapshot.exists) throw Exception("ไม่พบ User");
 
-      if (userdata.exists) {
-        final data = userdata.data();
-
-        final firstName = data?['First_name'] ?? 'User';
-        final lastName = data?['Last_name'] ?? '';
-
+      final data = snapshot.data() as Map<String, dynamic>;
+      final String? imageUrlFromFirestore = data['Image'];
+      if (mounted) {
         setState(() {
-          userName = "$firstName $lastName".trim();
-          userGreetingName = firstName;
+          userName =
+              "${data['First_name'] ?? 'User'} ${data['Last_name'] ?? ''}"
+                  .trim();
+          userGreetingName = data['First_name'] ?? 'User';
+          userImageUrl =
+              (imageUrlFromFirestore != null &&
+                  imageUrlFromFirestore.isNotEmpty)
+              ? imageUrlFromFirestore
+              : defaultImageUrl;
+          _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint("❌ เกิดข้อผิดพลาดในการดึงข้อมูล User: $e");
+      print("❌ Error fetching user data: $e");
+      if (mounted) {
+        setState(() {
+          userName = "User";
+          userGreetingName = "User";
+          userImageUrl = defaultImageUrl;
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -82,7 +100,7 @@ class _HomeUserState extends State<HomeUser> {
                 const SizedBox(height: 24),
 
                 // --- Banner สีน้ำเงิน ---
-                _buildWelcomeBanner(primaryColor, userName, userImageUrl),
+                _buildWelcomeBanner(primaryColor, userName!, userImageUrl!),
 
                 const SizedBox(height: 20),
 
