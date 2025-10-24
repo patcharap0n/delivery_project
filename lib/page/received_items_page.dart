@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // <-- 1. Import
-import 'package:firebase_auth/firebase_auth.dart'; // <-- 1. Import
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:developer'; // <-- ADDED: สำหรับ debugPrint
 
-// (Backend) นี่คือข้อมูลจำลอง (ใช้เป็น Data Model ชั่วคราว)
 class _DummyPackageData {
   final String packageId;
   final String itemDescription;
@@ -24,10 +24,9 @@ class _DummyPackageData {
     required this.riderPhone,
   });
 }
-// --------------------------------------------------
 
 class ReceivedItemsPage extends StatefulWidget {
-  final String uid;
+  final String uid; // uid ของ "ผู้รับ" (ตัวเรา)
   ReceivedItemsPage({super.key, required this.uid});
 
   @override
@@ -35,59 +34,33 @@ class ReceivedItemsPage extends StatefulWidget {
 }
 
 class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
-  // --- 2. ลบ isLoading และ _receivedItems ออกไป ---
-
   // --- 3. สร้าง "ท่อ" (Stream) ---
   late final Stream<QuerySnapshot> _itemsStream;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
-    String? uid = FirebaseAuth.instance.currentUser?.uid;
 
-    if (uid != null) {
-      // 4. ให้ "ท่อ" นี้เชื่อมต่อกับ Firebase
-      _itemsStream = FirebaseFirestore.instance
-          .collection('shipments')
-          .where(
-            'receiverId',
-            isEqualTo: uid,
-          ) // <-- (จุดที่ต่าง) ค้นหาจาก receiverId
-          .where('status', whereIn: ['pending', 'accepted', 'inTransit'])
-          .snapshots(); // <-- .snapshots() เพื่อติดตามตลอด
-    } else {
-      _itemsStream = const Stream.empty();
-    }
+    // สร้าง Stream
+    _itemsStream = FirebaseFirestore.instance
+        .collection('shipment')
+        .where('senderId', isEqualTo: widget.uid)
+        .where('status', whereIn: ['pending', 'accepted', 'inTransit'])
+        .snapshots();
+    print(widget.uid);
   }
 
-  Future<void> _loadUserData() async {
-    try {
-      var db = FirebaseFirestore.instance;
-      var userRef = db.collection('User');
-
-      final userdata = await userRef.doc(widget.uid).get();
-
-      if (userdata.exists) {
-        final data = userdata.data();
-
-        final firstName = data?['First_name'] ?? 'User';
-        final lastName = data?['Last_name'] ?? '';
-
-        setState(() {});
-      }
-    } catch (e) {
-      debugPrint("❌ เกิดข้อผิดพลาดในการดึงข้อมูล User: $e");
-    }
+  Future<void> _handleRefresh() async {
+    await Future.delayed(const Duration(seconds: 1));
+    debugPrint("RefreshIndicator triggered.");
   }
-
-  // --- 5. ลบ _fetchReceivedItems() ทิ้งไป ---
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[200],
       appBar: AppBar(
+        // ... (AppBar เหมือนเดิม) ...
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
@@ -102,63 +75,68 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
       ),
 
       // --- 6. เปลี่ยน body เป็น StreamBuilder ---
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _itemsStream, // <-- ให้มันฟังจาก "ท่อ" ของเรา
-        builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
-          // --- (Logic ที่ปลอดภัย แก้ Error `Null check` แล้ว) ---
+      body: RefreshIndicator(
+        onRefresh: _handleRefresh,
+        child: StreamBuilder<QuerySnapshot>(
+          stream: _itemsStream, // <-- ให้มันฟังจาก "ท่อ" ของเรา
+          builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+            // 1. (if) ตรวจสอบ Error ก่อน
+            if (snapshot.hasError) {
+              debugPrint("StreamBuilder Error: ${snapshot.error}");
+              return const Center(child: Text('เกิดข้อผิดพลาดในการโหลดข้อมูล'));
+            }
 
-          // 1. (if) ตรวจสอบ Error ก่อน
-          if (snapshot.hasError) {
-            return const Center(child: Text('เกิดข้อผิดพลาดในการโหลดข้อมูล'));
-          }
+            // 2. (if) ตรวจสอบว่ากำลังโหลด
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          // 2. (if) ตรวจสอบว่ากำลังโหลด
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+            // 3. (if) (สำคัญ!) ตรวจสอบว่า "ไม่มีข้อมูล"
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              // (ถ้ามาหยุดตรงนี้ แปลว่า query 'receiverId' ของคุณไม่เจออะไรเลย)
+              return _buildEmptyState(); // <-- เรียกหน้าว่าง
+            }
 
-          // 3. (if) (สำคัญ!) ตรวจสอบว่า "ไม่มีข้อมูล"
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildEmptyState(); // <-- เรียกหน้าว่าง
-          }
+            // 4. (else) ถ้ามีข้อมูล...
+            return ListView.builder(
+              padding: const EdgeInsets.all(16.0),
+              itemCount: snapshot.data!.docs.length,
+              itemBuilder: (context, index) {
+                var doc = snapshot.data!.docs[index];
+                var data = doc.data() as Map<String, dynamic>? ?? {};
 
-          // 4. (else) ถ้ามีข้อมูล...
-          return ListView.builder(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              var doc = snapshot.data!.docs[index];
-              var data = doc.data() as Map<String, dynamic>? ?? {};
+                // --- MODIFIED ---
+                // แก้ไขการจับคู่ Field ให้ตรงกับ Firestore
+                final item = _DummyPackageData(
+                  packageId: doc.id,
+                  // 'details' คือ "รายละเอียดสินค้า"
+                  itemDescription: data['details'] ?? 'N/A',
+                  // 'senderPhone' คือ "เบอร์ผู้ส่ง" (เราไม่มีชื่อผู้ส่งในเอกสารนี้)
+                  senderName: data['senderPhone'] ?? 'N/A', // แสดงเบอร์แทนชื่อ
+                  senderPhone: data['senderPhone'] ?? 'N/A',
+                  // 'receiverStateCountry' คือ "ที่อยู่ผู้รับ" (ที่อยู่ของเรา)
+                  address: data['receiverStateCountry'] ?? 'N/A',
+                  status: data['status'] ?? 'N/A',
+                  riderName: data['riderName'] ?? 'N/A',
+                  riderPhone: data['riderPhone'] ?? 'N/A',
+                );
+                // --- END MODIFIED ---
 
-              // (Backend) TODO: ตรวจสอบชื่อ Field ให้ตรงกับ Firestore ของคุณ
-              final item = _DummyPackageData(
-                packageId: doc.id,
-                itemDescription: data['packageDetails'] ?? 'N/A',
-                senderName: data['senderName'] ?? 'N/A', // (ตัวอย่าง)
-                senderPhone: data['senderPhone'] ?? 'N/A', // (ตัวอย่าง)
-                address:
-                    (data['deliveryAddress']
-                        as Map<String, dynamic>?)?['fullAddress'] ??
-                    'N/A',
-                status: data['status'] ?? 'N/A',
-                riderName: data['riderName'] ?? 'N/A', // (ตัวอย่าง)
-                riderPhone: data['riderPhone'] ?? 'N/A', // (ตัวอย่าง)
-              );
-
-              return _buildPackageCard(
-                packageId: item.packageId,
-                itemDescription: item.itemDescription,
-                personLabel: "ผู้ส่ง:", // <-- (จุดที่ต่าง)
-                personName: item.senderName,
-                personPhone: item.senderPhone,
-                address: item.address,
-                status: item.status,
-                riderName: item.riderName,
-                riderPhone: item.riderPhone,
-              );
-            },
-          );
-        },
+                return _buildPackageCard(
+                  packageId: item.packageId,
+                  itemDescription: item.itemDescription,
+                  personLabel: "ผู้ส่ง:", // <-- (จุดที่ต่าง)
+                  personName: item.senderName, // (แสดงเบอร์โทรผู้ส่ง)
+                  personPhone: item.senderPhone,
+                  address: item.address, // (ที่อยู่ของเรา)
+                  status: item.status,
+                  riderName: item.riderName,
+                  riderPhone: item.riderPhone,
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -324,17 +302,20 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.phone_in_talk_rounded,
-                  color: Colors.green.shade600,
-                  size: 16,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  phone,
-                  style: const TextStyle(fontSize: 15, color: Colors.black54),
-                ),
+                // --- MODIFIED --- (ซ่อน Icon ถ้าไม่มีเบอร์)
+                if (phone.isNotEmpty && phone != "N/A") ...[
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.phone_in_talk_rounded,
+                    color: Colors.green.shade600,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    phone,
+                    style: const TextStyle(fontSize: 15, color: Colors.black54),
+                  ),
+                ],
               ],
             ),
           ),
