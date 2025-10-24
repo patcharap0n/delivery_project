@@ -48,6 +48,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
   bool _isUploadFinished = false;
   bool _isSubmitting = false;
   bool _isSearchingReceiver = false;
+  String? _foundReceiverId;
 
   @override
   void initState() {
@@ -70,15 +71,10 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
           }
         });
       }
-
-      debugPrint("✅ โหลดข้อมูลผู้ส่งเสร็จสิ้น");
-    } catch (e) {
-      debugPrint("❌ โหลดข้อมูลจาก Firestore ผิดพลาด: $e");
-    }
+    } catch (e) {}
   }
 
   Future<void> _searchReceiverByPhone() async {
-    // ... (ส่วนนี้เหมือนเดิมครับ) ...
     final phone = _receiverPhoneController.text.trim();
     if (phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -92,7 +88,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
       _receiverSavedAddresses = [];
       _receiverAddressController.clear();
       _receiverStateCountryController.clear();
-      _selectedAddressForMap = null;
+      _foundReceiverId = null; // 2. เคลียร์ ID ผู้รับเก่าทุกครั้งที่ค้นหา
     });
 
     try {
@@ -111,7 +107,13 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
           _receiverSavedAddresses = [];
         });
       } else {
-        final userData = querySnapshot.docs.first.data();
+        // --- 3. นี่คือจุดที่คุณต้องใส่โค้ด (โค้ดของคุณ) ---
+        final userDoc = querySnapshot.docs.first; // <-- เอา Doc
+        final userData = userDoc.data(); // <-- เอา Data
+
+        _foundReceiverId = userDoc.id; // <-- 4. เก็บ UID ของผู้รับ
+        // --- จบส่วนของโค้ดที่คุณส่งมา ---
+
         final firstName = userData['First_name'] ?? '';
         final lastName = userData['Last_name'] ?? '';
         final fullName = "$firstName $lastName".trim();
@@ -128,6 +130,12 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
 
         setState(() {
           _receiverSavedAddresses = tempFoundAddresses;
+
+          // 5. (แนะนำ) กรอกข้อมูลช่องแรกให้เลย
+          _receiverAddressController.text = fullName; // "ชื่อผู้รับ"
+          _receiverStateCountryController.text = addresses.isNotEmpty
+              ? addresses.first
+              : ''; // "ที่อยู่"
         });
 
         ScaffoldMessenger.of(
@@ -208,6 +216,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
 
       final shipmentData = {
         'senderId': widget.uid,
+        'receiverId': _foundReceiverId,
         'senderPhone': _senderPhoneController.text.toString(),
         'senderAddress': _selectedSenderAddress,
         'receiverAddress': _receiverAddressController.text,
@@ -217,6 +226,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
         'details': _packageDetailsController.text.toString(),
         'notes': _packageNotesController.text.toString(),
         'timestamp': FieldValue.serverTimestamp(),
+        'status': 'pending',
         // 'imageUrl': imageUrl,
       };
       await FirebaseFirestore.instance.collection('shipment').add(shipmentData);

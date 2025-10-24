@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery/page/create_shipment_page.dart';
 import 'package:delivery/page/received_items_page.dart';
-import 'package:delivery/page/tracking_page.dart';
 import 'package:delivery/page/transit_items_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get_core/src/get_main.dart';
@@ -9,7 +8,8 @@ import 'package:get/get_navigation/get_navigation.dart';
 
 class HomeUser extends StatefulWidget {
   final String uid;
-  const HomeUser({super.key, required this.uid});
+  final String phone;
+  const HomeUser({super.key, required this.uid, required this.phone});
 
   @override
   State<HomeUser> createState() => _HomeUserState();
@@ -176,8 +176,9 @@ class _HomeUserState extends State<HomeUser> {
             label: "ของที่ได้รับ",
             primaryColor: primaryColor,
             onPressed: () {
-              // TODO: ไปยังหน้า "ของที่ได้รับ"
-              print("ไปหน้าของที่ได้รับ");
+              Get.to(
+                () => TransitItemsPage(uid: widget.uid, phone: widget.phone),
+              );
             },
           ),
         ),
