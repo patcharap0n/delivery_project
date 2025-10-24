@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:delivery/page/LoginPage.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_navigation/get_navigation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
@@ -58,6 +61,7 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
         'VehicleImage': _vehicleImage.toString(),
       };
       db.collection('riders').doc().set(data);
+      Get.to(LoginPage());
       // ข้อมูลพร้อมส่งไป backend / Firebase
       print('Role: ${widget.role}'); // Rider
       print('ชื่อ: ${_nameController.text}');

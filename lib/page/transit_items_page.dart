@@ -52,7 +52,7 @@ class _TransitItemsPageState extends State<TransitItemsPage> {
     _itemsStream = FirebaseFirestore.instance
         .collection('shipment')
         .where('receiverId', isEqualTo: widget.uid)
-        .where('status', whereIn: ['pending', 'accepted', 'inTransit'])
+        .where('status', whereIn: ['pending', 'inTransit', 'accepted'])
         .snapshots();
     print(widget.uid);
   }

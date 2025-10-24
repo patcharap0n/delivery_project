@@ -8,7 +8,8 @@ import 'package:geolocator/geolocator.dart'; // สำหรับเช็ค�
 import 'dart:io';
 
 class CurrentJobPage extends StatefulWidget {
-  const CurrentJobPage({super.key});
+  final String uid;
+  const CurrentJobPage({super.key, required this.uid});
 
   @override
   State<CurrentJobPage> createState() => _CurrentJobPageState();
@@ -43,7 +44,7 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
     }
   }
 
-   // ขอ Permission Location
+  // ขอ Permission Location
   Future<void> _checkLocationPermission() async {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
@@ -52,12 +53,16 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
     // TODO: จัดการกรณี Permission ถูกปฏิเสธถาวร
   }
 
-
   // --- ฟังก์ชันอัปเดตสถานะ (รับของ/ส่งของ) ---
 
   // ฟังก์ชันเลือกและอัปโหลดรูป
-  Future<void> _pickAndUploadImage(String shipmentId, String statusField) async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.camera); // บังคับถ่ายจากกล้อง
+  Future<void> _pickAndUploadImage(
+    String shipmentId,
+    String statusField,
+  ) async {
+    final pickedFile = await _picker.pickImage(
+      source: ImageSource.camera,
+    ); // บังคับถ่ายจากกล้อง
     if (pickedFile != null) {
       setState(() {
         _pickedImageFile = File(pickedFile.path);
@@ -96,8 +101,8 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
     //   });
     //   Get.snackbar("สำเร็จ", "อัปเดตสถานะ: กำลังไปส่ง");
     // } catch (e) { Get.snackbar("ผิดพลาด", "ไม่สามารถอัปเดตสถานะได้"); }
-     print("กดรับของแล้ว");
-     Get.snackbar("จำลอง", "อัปเดตสถานะเป็น 'inTransit'");
+    print("กดรับของแล้ว");
+    Get.snackbar("จำลอง", "อัปเดตสถานะเป็น 'inTransit'");
   }
 
   // กด "ส่งของแล้ว" (หลังจากถ่ายรูปจุด Dropoff)
@@ -120,42 +125,48 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
     //   Get.snackbar("สำเร็จ", "ส่งสินค้าเรียบร้อยแล้ว!");
     //   // หน้านี้จะเปลี่ยนเป็น Empty State เองเพราะ currentJobId เป็น null แล้ว
     // } catch (e) { Get.snackbar("ผิดพลาด", "ไม่สามารถอัปเดตสถานะได้"); }
-     print("กดส่งของแล้ว");
-     Get.snackbar("จำลอง", "อัปเดตสถานะเป็น 'delivered' และ Rider ว่าง");
-      // จำลองการเคลียร์ Job ID (เพื่อให้ UI กลับไป Empty State)
-      // ในแอปจริง StreamBuilder จะจัดการให้เอง
-      // await FirebaseFirestore.instance.collection('rider_locations').doc(_riderId!).update({'currentJobId': null});
+    print("กดส่งของแล้ว");
+    Get.snackbar("จำลอง", "อัปเดตสถานะเป็น 'delivered' และ Rider ว่าง");
+    // จำลองการเคลียร์ Job ID (เพื่อให้ UI กลับไป Empty State)
+    // ในแอปจริง StreamBuilder จะจัดการให้เอง
+    // await FirebaseFirestore.instance.collection('rider_locations').doc(_riderId!).update({'currentJobId': null});
   }
 
   // --- ฟังก์ชันเช็คระยะทาง ---
   // (ฟังก์ชันนี้ควรถูกเรียกใช้เป็นระยะๆ หรือเมื่อตำแหน่ง Rider เปลี่ยน)
   Future<void> _checkProximity(GeoPoint pickupGeo, GeoPoint dropoffGeo) async {
-     try {
-       Position currentPosition = await Geolocator.getCurrentPosition();
-       double distanceToPickup = Geolocator.distanceBetween(
-         currentPosition.latitude, currentPosition.longitude,
-         pickupGeo.latitude, pickupGeo.longitude
-       );
-       double distanceToDropoff = Geolocator.distanceBetween(
-         currentPosition.latitude, currentPosition.longitude,
-         dropoffGeo.latitude, dropoffGeo.longitude
-       );
+    try {
+      Position currentPosition = await Geolocator.getCurrentPosition();
+      double distanceToPickup = Geolocator.distanceBetween(
+        currentPosition.latitude,
+        currentPosition.longitude,
+        pickupGeo.latitude,
+        pickupGeo.longitude,
+      );
+      double distanceToDropoff = Geolocator.distanceBetween(
+        currentPosition.latitude,
+        currentPosition.longitude,
+        dropoffGeo.latitude,
+        dropoffGeo.longitude,
+      );
 
-       setState(() {
-         _canInteractPickup = distanceToPickup <= 20; // อยู่ในระยะ 20 เมตร
-         _canInteractDropoff = distanceToDropoff <= 20;
-       });
-     } catch (e) {
-       print("Error getting current location: $e");
-     }
+      setState(() {
+        _canInteractPickup = distanceToPickup <= 20; // อยู่ในระยะ 20 เมตร
+        _canInteractDropoff = distanceToDropoff <= 20;
+      });
+    } catch (e) {
+      print("Error getting current location: $e");
+    }
   }
-
 
   @override
   Widget build(BuildContext context) {
     if (_riderId == null) {
       // กรณีร้ายแรง: ไม่ควรเกิดขึ้นถ้า Login ถูกต้อง
-      return Scaffold(appBar: AppBar(), body: const Center(child: Text("ไม่พบข้อมูล Rider")));
+      return Scaffold(
+        appBar: AppBar(),
+        body: const Center(child: Text("ไม่พบข้อมูล Rider")),
+      );
     }
 
     return Scaffold(
@@ -178,11 +189,14 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
           if (riderSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (riderSnapshot.hasError || !riderSnapshot.hasData || !riderSnapshot.data!.exists) {
+          if (riderSnapshot.hasError ||
+              !riderSnapshot.hasData ||
+              !riderSnapshot.data!.exists) {
             return _buildEmptyState("ไม่สามารถโหลดข้อมูล Rider ได้");
           }
 
-          var riderData = riderSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+          var riderData =
+              riderSnapshot.data!.data() as Map<String, dynamic>? ?? {};
           String? currentJobId = riderData['currentJobId'];
 
           // --- ถ้า Rider ไม่มีงาน ---
@@ -193,54 +207,87 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
           // --- ถ้า Rider มีงาน ---
           // ใช้ StreamBuilder อีกชั้นเพื่อดึงข้อมูล Shipment
           return StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance.collection('shipments').doc(currentJobId).snapshots(),
+            stream: FirebaseFirestore.instance
+                .collection('shipments')
+                .doc(currentJobId)
+                .snapshots(),
             builder: (context, jobSnapshot) {
               if (jobSnapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              if (jobSnapshot.hasError || !jobSnapshot.hasData || !jobSnapshot.data!.exists) {
+              if (jobSnapshot.hasError ||
+                  !jobSnapshot.hasData ||
+                  !jobSnapshot.data!.exists) {
                 return const Center(child: Text("ไม่สามารถโหลดข้อมูลงานได้"));
               }
 
-              var jobData = jobSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+              var jobData =
+                  jobSnapshot.data!.data() as Map<String, dynamic>? ?? {};
               String status = jobData['status'] ?? 'unknown';
 
               // (Backend) TODO: ดึงข้อมูลที่อยู่และอื่นๆ ให้ครบ
-              GeoPoint pickupGeo = jobData['pickupAddress']?['location'] ?? const GeoPoint(0,0);
-              GeoPoint dropoffGeo = jobData['deliveryAddress']?['location'] ?? const GeoPoint(0,0);
-              String pickupAddr = jobData['pickupAddress']?['fullAddress'] ?? 'N/A';
-              String dropoffAddr = jobData['deliveryAddress']?['fullAddress'] ?? 'N/A';
+              GeoPoint pickupGeo =
+                  jobData['pickupAddress']?['location'] ?? const GeoPoint(0, 0);
+              GeoPoint dropoffGeo =
+                  jobData['deliveryAddress']?['location'] ??
+                  const GeoPoint(0, 0);
+              String pickupAddr =
+                  jobData['pickupAddress']?['fullAddress'] ?? 'N/A';
+              String dropoffAddr =
+                  jobData['deliveryAddress']?['fullAddress'] ?? 'N/A';
               String receiverName = jobData['receiverName'] ?? 'N/A';
               String receiverPhone = jobData['receiverPhone'] ?? 'N/A';
               String itemDesc = jobData['packageDetails'] ?? 'N/A';
-              String photoPendingUrl = jobData['photoPendingUrl']; // รูปตอนสร้างงาน
-              String photoInTransitUrl = jobData['photoInTransitUrl']; // รูปตอนรับของ
-              String photoDeliveredUrl = jobData['photoDeliveredUrl']; // รูปตอนส่งของ
-
+              String photoPendingUrl =
+                  jobData['photoPendingUrl']; // รูปตอนสร้างงาน
+              String photoInTransitUrl =
+                  jobData['photoInTransitUrl']; // รูปตอนรับของ
+              String photoDeliveredUrl =
+                  jobData['photoDeliveredUrl']; // รูปตอนส่งของ
 
               // (สำคัญ) เช็คระยะทางเป็นระยะ (อาจต้องทำ background task จริงจัง)
               _checkProximity(pickupGeo, dropoffGeo);
 
               // อัปเดต Markers บนแผนที่
               _markers.clear();
-              _markers.add(Marker(markerId: const MarkerId('pickup'), position: LatLng(pickupGeo.latitude, pickupGeo.longitude), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen)));
-              _markers.add(Marker(markerId: const MarkerId('dropoff'), position: LatLng(dropoffGeo.latitude, dropoffGeo.longitude), icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed)));
+              _markers.add(
+                Marker(
+                  markerId: const MarkerId('pickup'),
+                  position: LatLng(pickupGeo.latitude, pickupGeo.longitude),
+                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                    BitmapDescriptor.hueGreen,
+                  ),
+                ),
+              );
+              _markers.add(
+                Marker(
+                  markerId: const MarkerId('dropoff'),
+                  position: LatLng(dropoffGeo.latitude, dropoffGeo.longitude),
+                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                    BitmapDescriptor.hueRed,
+                  ),
+                ),
+              );
               // (Backend) TODO: เพิ่ม Marker ของ Rider (จาก riderData['currentLocation'])
-
 
               return Stack(
                 children: [
                   // --- แผนที่ ---
                   GoogleMap(
-                    initialCameraPosition: CameraPosition(target: LatLng(pickupGeo.latitude, pickupGeo.longitude), zoom: 14),
+                    initialCameraPosition: CameraPosition(
+                      target: LatLng(pickupGeo.latitude, pickupGeo.longitude),
+                      zoom: 14,
+                    ),
                     onMapCreated: (controller) => _mapController = controller,
                     markers: _markers,
-                     myLocationEnabled: true, // แสดงตำแหน่ง Rider
-                     myLocationButtonEnabled: true,
+                    myLocationEnabled: true, // แสดงตำแหน่ง Rider
+                    myLocationButtonEnabled: true,
                   ),
                   // --- Panel รายละเอียด ---
                   Positioned(
-                    left: 0, right: 0, bottom: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
                     child: _buildDetailsPanel(
                       jobId: currentJobId,
                       status: status,
@@ -252,7 +299,7 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
                       photoInTransitUrl: photoInTransitUrl, // ส่ง URL รูปไปเช็ค
                       photoDeliveredUrl: photoDeliveredUrl,
                     ),
-                  )
+                  ),
                 ],
               );
             },
@@ -268,9 +315,16 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_none_rounded, size: 80, color: Colors.grey[400]),
+          Icon(
+            Icons.notifications_none_rounded,
+            size: 80,
+            color: Colors.grey[400],
+          ),
           const SizedBox(height: 16),
-          Text(message, style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+          Text(
+            message,
+            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+          ),
         ],
       ),
     );
@@ -290,38 +344,60 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
   }) {
     bool isGoingToPickup = (status == 'accepted');
     bool isGoingToDropoff = (status == 'inTransit');
-    bool pickupPhotoUploaded = photoInTransitUrl != null && photoInTransitUrl.isNotEmpty;
-    bool deliveryPhotoUploaded = photoDeliveredUrl != null && photoDeliveredUrl.isNotEmpty;
+    bool pickupPhotoUploaded =
+        photoInTransitUrl != null && photoInTransitUrl.isNotEmpty;
+    bool deliveryPhotoUploaded =
+        photoDeliveredUrl != null && photoDeliveredUrl.isNotEmpty;
 
     return Container(
-       decoration: BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(24.0),
           topRight: Radius.circular(24.0),
         ),
-        boxShadow: [ BoxShadow( color: Colors.black.withOpacity(0.1), blurRadius: 10)],
-        border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1.0)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10),
+        ],
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade300, width: 1.0),
+        ),
       ),
       padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Package #$jobId", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            "Package #$jobId",
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 16),
           _buildInfoRow(label: "สินค้า:", value: itemDesc),
           _buildInfoRow(label: "ที่อยู่รับสินค้า:", value: pickupAddr),
           _buildInfoRow(label: "ที่อยู่ปลายทาง:", value: dropoffAddr),
-          _buildInfoRowWithIcon(label: "ผู้รับ:", value: receiverName, phone: receiverPhone),
-          _buildInfoRow(label: "สถานะ:", value: _getStatusText(status), valueColor: _getStatusColor(status), isBold: true),
+          _buildInfoRowWithIcon(
+            label: "ผู้รับ:",
+            value: receiverName,
+            phone: receiverPhone,
+          ),
+          _buildInfoRow(
+            label: "สถานะ:",
+            value: _getStatusText(status),
+            valueColor: _getStatusColor(status),
+            isBold: true,
+          ),
 
           // --- แสดงรูปที่เลือก (ถ้ามี) ---
           if (_pickedImageFile != null)
-             Padding(
-               padding: const EdgeInsets.symmetric(vertical: 8.0),
-               child: Image.file(_pickedImageFile!, height: 100, fit: BoxFit.cover),
-             ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Image.file(
+                _pickedImageFile!,
+                height: 100,
+                fit: BoxFit.cover,
+              ),
+            ),
 
           // --- ปุ่ม Actions ---
           const SizedBox(height: 16),
@@ -331,66 +407,108 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
               // ปุ่มอัปโหลดรูป (Pickup)
               if (isGoingToPickup)
                 ElevatedButton.icon(
-                  onPressed: _isUploading || !_canInteractPickup ? null : () => _pickAndUploadImage(jobId, 'photoInTransitUrl'),
-                  icon: _isUploading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.camera_alt),
-                  label: Text(pickupPhotoUploaded ? "อัปโหลด Pickup ใหม่" : "อัปโหลด Pickup"),
-                   style: ElevatedButton.styleFrom(
-                     backgroundColor: Colors.orange,
-                     foregroundColor: Colors.white,
-                     disabledBackgroundColor: Colors.grey,
-                   ),
+                  onPressed: _isUploading || !_canInteractPickup
+                      ? null
+                      : () => _pickAndUploadImage(jobId, 'photoInTransitUrl'),
+                  icon: _isUploading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.camera_alt),
+                  label: Text(
+                    pickupPhotoUploaded
+                        ? "อัปโหลด Pickup ใหม่"
+                        : "อัปโหลด Pickup",
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey,
+                  ),
                 ),
 
               // ปุ่มอัปโหลดรูป (Delivery)
               if (isGoingToDropoff)
-                 ElevatedButton.icon(
-                  onPressed: _isUploading || !_canInteractDropoff ? null : () => _pickAndUploadImage(jobId, 'photoDeliveredUrl'),
-                   icon: _isUploading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.camera_alt),
-                  label: Text(deliveryPhotoUploaded ? "อัปโหลด Delivery ใหม่" : "อัปโหลด Delivery"),
-                   style: ElevatedButton.styleFrom(
-                     backgroundColor: Colors.orange,
-                     foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey,
-                   ),
+                ElevatedButton.icon(
+                  onPressed: _isUploading || !_canInteractDropoff
+                      ? null
+                      : () => _pickAndUploadImage(jobId, 'photoDeliveredUrl'),
+                  icon: _isUploading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.camera_alt),
+                  label: Text(
+                    deliveryPhotoUploaded
+                        ? "อัปโหลด Delivery ใหม่"
+                        : "อัปโหลด Delivery",
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey,
+                  ),
                 ),
 
               // ปุ่มยืนยัน (เปลี่ยนไปตามสถานะ)
               if (isGoingToPickup)
                 ElevatedButton(
-                  onPressed: _isUploading || !pickupPhotoUploaded || !_canInteractPickup ? null : () => _markAsPickedUp(jobId),
+                  onPressed:
+                      _isUploading ||
+                          !pickupPhotoUploaded ||
+                          !_canInteractPickup
+                      ? null
+                      : () => _markAsPickedUp(jobId),
                   child: const Text("รับของแล้ว"),
-                   style: ElevatedButton.styleFrom(
-                     backgroundColor: Colors.green,
-                     foregroundColor: Colors.white,
-                     disabledBackgroundColor: Colors.grey,
-                   ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey,
+                  ),
                 ),
               if (isGoingToDropoff)
                 ElevatedButton(
-                  onPressed: _isUploading || !deliveryPhotoUploaded || !_canInteractDropoff ? null : () => _markAsDelivered(jobId),
+                  onPressed:
+                      _isUploading ||
+                          !deliveryPhotoUploaded ||
+                          !_canInteractDropoff
+                      ? null
+                      : () => _markAsDelivered(jobId),
                   child: const Text("ส่งของแล้ว"),
                   style: ElevatedButton.styleFrom(
-                     backgroundColor: Colors.blue,
-                     foregroundColor: Colors.white,
-                     disabledBackgroundColor: Colors.grey,
-                   ),
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey,
+                  ),
                 ),
             ],
-          )
+          ),
         ],
       ),
     );
   }
 
   // --- Helper Widgets (เหมือนเดิม + แปลสถานะ) ---
-    Widget _buildInfoRow({required String label, required String value, Color? valueColor, bool isBold = false}) {
+  Widget _buildInfoRow({
+    required String label,
+    required String value,
+    Color? valueColor,
+    bool isBold = false,
+  }) {
     const Color primaryText = Color(0xFF005FFF);
-     return Padding(
+    return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 15, color: Colors.black54)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 15, color: Colors.black54),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -407,19 +525,29 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
     );
   }
 
-  Widget _buildInfoRowWithIcon({required String label, required String value, required String phone, Color? valueColor}) {
+  Widget _buildInfoRowWithIcon({
+    required String label,
+    required String value,
+    required String phone,
+    Color? valueColor,
+  }) {
     const Color primaryText = Color(0xFF005FFF);
-     return Padding(
+    return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 15, color: Colors.black54)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 15, color: Colors.black54),
+          ),
           const SizedBox(width: 8),
           Expanded(
-            child: Wrap( // ใช้ Wrap เผื่อหน้าจอเล็ก
+            child: Wrap(
+              // ใช้ Wrap เผื่อหน้าจอเล็ก
               crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 8.0, runSpacing: 4.0,
+              spacing: 8.0,
+              runSpacing: 4.0,
               children: [
                 Text(
                   value,
@@ -432,9 +560,19 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.phone_in_talk_rounded, color: Colors.green.shade600, size: 16),
+                    Icon(
+                      Icons.phone_in_talk_rounded,
+                      color: Colors.green.shade600,
+                      size: 16,
+                    ),
                     const SizedBox(width: 4),
-                    Text(phone, style: const TextStyle(fontSize: 15, color: Colors.black54)),
+                    Text(
+                      phone,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Colors.black54,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -447,18 +585,24 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
 
   String _getStatusText(String status) {
     switch (status) {
-      case 'accepted': return '[2] กำลังเดินทางไปรับสินค้า';
-      case 'inTransit': return '[3] รับสินค้าแล้ว กำลังไปส่ง';
+      case 'accepted':
+        return '[2] กำลังเดินทางไปรับสินค้า';
+      case 'inTransit':
+        return '[3] รับสินค้าแล้ว กำลังไปส่ง';
       // เพิ่ม case อื่นๆ ถ้ามี
-      default: return status;
+      default:
+        return status;
     }
   }
 
   Color _getStatusColor(String status) {
-     switch (status) {
-      case 'accepted': return Colors.orange.shade700;
-      case 'inTransit': return Colors.blue.shade700;
-      default: return Colors.grey;
+    switch (status) {
+      case 'accepted':
+        return Colors.orange.shade700;
+      case 'inTransit':
+        return Colors.blue.shade700;
+      default:
+        return Colors.grey;
     }
   }
 }

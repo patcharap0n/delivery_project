@@ -4,7 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
 class EditRiderProfilePage extends StatefulWidget {
-  const EditRiderProfilePage({super.key});
+  final String uid;
+  const EditRiderProfilePage({super.key, required this.uid});
 
   @override
   State<EditRiderProfilePage> createState() => _EditRiderProfilePageState();
@@ -15,16 +16,19 @@ class _EditRiderProfilePageState extends State<EditRiderProfilePage> {
 
   // --- (Backend) TODO: ดึงข้อมูล Rider จริงมาใส่ ---
   // 1. Name
-  final TextEditingController _nameController =
-      TextEditingController(text: "Tun Tung Tung");
+  final TextEditingController _nameController = TextEditingController(
+    text: "Tun Tung Tung",
+  );
 
   // 2. Phone
-  final TextEditingController _phoneController =
-      TextEditingController(text: "081-234-5678");
+  final TextEditingController _phoneController = TextEditingController(
+    text: "081-234-5678",
+  );
 
   // 3. Vehicle Number
-  final TextEditingController _vehicleNumberController =
-      TextEditingController(text: "กท 1234");
+  final TextEditingController _vehicleNumberController = TextEditingController(
+    text: "กท 1234",
+  );
 
   // 4. Rider Image
   String _existingRiderImageUrl =
@@ -39,9 +43,11 @@ class _EditRiderProfilePageState extends State<EditRiderProfilePage> {
   final ImagePicker _picker = ImagePicker();
 
   // 6. Password
-  final TextEditingController _currentPasswordController = TextEditingController();
+  final TextEditingController _currentPasswordController =
+      TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   // ------------------------------------------
 
   @override
@@ -75,7 +81,9 @@ class _EditRiderProfilePageState extends State<EditRiderProfilePage> {
       Get.dialog(
         AlertDialog(
           title: const Text('ยืนยันการแก้ไข'),
-          content: const Text('คุณแน่ใจหรือไม่ว่าต้องการบันทึกการเปลี่ยนแปลงนี้?'),
+          content: const Text(
+            'คุณแน่ใจหรือไม่ว่าต้องการบันทึกการเปลี่ยนแปลงนี้?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Get.back(),
@@ -94,8 +102,12 @@ class _EditRiderProfilePageState extends State<EditRiderProfilePage> {
                 print("ชื่อ: ${_nameController.text}");
                 print("เบอร์โทรใหม่: ${_phoneController.text}");
                 print("ทะเบียนรถใหม่: ${_vehicleNumberController.text}");
-                print("รูป Rider ใหม่: ${_newRiderImageFile?.path ?? 'ไม่ได้เปลี่ยน'}");
-                print("รูป Vehicle ใหม่: ${_newVehicleImageFile?.path ?? 'ไม่ได้เปลี่ยน'}");
+                print(
+                  "รูป Rider ใหม่: ${_newRiderImageFile?.path ?? 'ไม่ได้เปลี่ยน'}",
+                );
+                print(
+                  "รูป Vehicle ใหม่: ${_newVehicleImageFile?.path ?? 'ไม่ได้เปลี่ยน'}",
+                );
 
                 Get.back(); // ปิด Dialog
                 Get.back(); // กลับหน้า Home
@@ -103,7 +115,10 @@ class _EditRiderProfilePageState extends State<EditRiderProfilePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF005FFF),
               ),
-              child: const Text('ยืนยัน', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'ยืนยัน',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -158,8 +173,9 @@ class _EditRiderProfilePageState extends State<EditRiderProfilePage> {
                   controller: _phoneController,
                   decoration: _inputDecoration(labelText: 'เบอร์โทรศัพท์'),
                   keyboardType: TextInputType.phone,
-                  validator: (value) =>
-                      (value == null || value.isEmpty) ? 'กรุณากรอกเบอร์โทร' : null,
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? 'กรุณากรอกเบอร์โทร'
+                      : null,
                 ),
                 const SizedBox(height: 24),
 
@@ -169,15 +185,15 @@ class _EditRiderProfilePageState extends State<EditRiderProfilePage> {
                 TextFormField(
                   controller: _vehicleNumberController,
                   decoration: _inputDecoration(labelText: 'ทะเบียนรถ'),
-                  validator: (value) =>
-                      (value == null || value.isEmpty) ? 'กรุณากรอกทะเบียนรถ' : null,
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? 'กรุณากรอกทะเบียนรถ'
+                      : null,
                 ),
                 const SizedBox(height: 16),
 
                 // --- 5. รูปยานพาหนะ ---
                 _buildVehicleImagePicker(),
                 const SizedBox(height: 24),
-
 
                 // --- 6. รหัสผ่าน ---
                 _buildPasswordSection(),
@@ -224,9 +240,7 @@ class _EditRiderProfilePageState extends State<EditRiderProfilePage> {
   InputDecoration _inputDecoration({required String labelText}) {
     return InputDecoration(
       labelText: labelText,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
 
@@ -234,7 +248,9 @@ class _EditRiderProfilePageState extends State<EditRiderProfilePage> {
   Widget _buildProfileImagePicker({required bool isRiderImage}) {
     ImageProvider backgroundImage;
     File? newImage = isRiderImage ? _newRiderImageFile : _newVehicleImageFile;
-    String existingImage = isRiderImage ? _existingRiderImageUrl : _existingVehicleImageUrl;
+    String existingImage = isRiderImage
+        ? _existingRiderImageUrl
+        : _existingVehicleImageUrl;
 
     backgroundImage = (newImage != null)
         ? FileImage(newImage)
@@ -263,18 +279,14 @@ class _EditRiderProfilePageState extends State<EditRiderProfilePage> {
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.edit,
-              color: Color(0xFF005FFF),
-              size: 20,
-            ),
+            child: const Icon(Icons.edit, color: Color(0xFF005FFF), size: 20),
           ),
         ],
       ),
     );
   }
 
-   // ตัวเลือกรูป Vehicle (ทำให้เป็นสี่เหลี่ยม)
+  // ตัวเลือกรูป Vehicle (ทำให้เป็นสี่เหลี่ยม)
   Widget _buildVehicleImagePicker() {
     ImageProvider backgroundImage;
     backgroundImage = (_newVehicleImageFile != null)
@@ -292,10 +304,7 @@ class _EditRiderProfilePageState extends State<EditRiderProfilePage> {
             decoration: BoxDecoration(
               color: Colors.grey[200],
               borderRadius: BorderRadius.circular(8),
-              image: DecorationImage(
-                image: backgroundImage,
-                fit: BoxFit.cover,
-              ),
+              image: DecorationImage(image: backgroundImage, fit: BoxFit.cover),
             ),
           ),
           Container(
@@ -304,7 +313,7 @@ class _EditRiderProfilePageState extends State<EditRiderProfilePage> {
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
-               boxShadow: [
+              boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
                   blurRadius: 4,
@@ -312,17 +321,12 @@ class _EditRiderProfilePageState extends State<EditRiderProfilePage> {
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.edit,
-              color: Color(0xFF005FFF),
-              size: 20,
-            ),
+            child: const Icon(Icons.edit, color: Color(0xFF005FFF), size: 20),
           ),
         ],
       ),
     );
   }
-
 
   Widget _buildPasswordSection() {
     return ExpansionTile(
