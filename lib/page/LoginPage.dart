@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery/page/RegisterRiderPage.dart';
 import 'package:delivery/page/RegisterUserPage.dart';
-import 'package:delivery/page/home_page.dart';
 import 'package:delivery/page/home_rider_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_navigation/get_navigation.dart';
+import 'package:delivery/page/home_user_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -193,13 +193,16 @@ class _LoginPageState extends State<LoginPage> {
       var userData = userquery.docs.first.data();
       String role = userData['Role'];
       if (role == "User") {
-        Get.to(HomeUser());
+        var userDoc = userquery.docs.first;
+        String uid = userDoc.id;
+        Get.offAll(() => HomeUser(uid: uid));
       }
     } else if (riderquery.docs.isNotEmpty) {
       var userData = riderquery.docs.first.data();
       String role = userData['Role'];
       if (role == "Rider") {
-        Get.to(HomeRider());
+        // Get.to(HomeRider()); // <--- Old way (Problematic)
+        Get.offAll(() => const HomeRider()); // <--- Corrected this line too
       } else {
         Get.snackbar("Error", "Role ไม่ถูกต้อง");
       }

@@ -6,8 +6,8 @@ class TrackingPage extends StatefulWidget {
   // (Backend) หน้านี้ควรรู้ว่ากำลังติดตามพัสดุชิ้นไหน
   // final String shipmentId;
   // const TrackingPage({super.key, required this.shipmentId});
-  
-  const TrackingPage({super.key}); // แบบ UI
+
+  const TrackingPage({super.key, required String uid}); // แบบ UI
 
   @override
   State<TrackingPage> createState() => _TrackingPageState();
@@ -16,12 +16,21 @@ class TrackingPage extends StatefulWidget {
 class _TrackingPageState extends State<TrackingPage> {
   // --- ตัวแปรและ State สำหรับแผนที่ ---
   final Completer<GoogleMapController> _mapController = Completer();
-  
+
   // (Backend) ข้อมูลตำแหน่ง (ข้อมูลจำลอง)
   // ในแอปจริง ตำแหน่ง Rider (riderLocation) จะต้องมาจาก Stream
-  static const LatLng riderLocation = LatLng(40.7295, -73.9965); // ตำแหน่ง Rider (NYU)
-  static const LatLng pickupLocation = LatLng(40.7484, -73.9857); // จุดรับ (Empire State)
-  static const LatLng dropoffLocation = LatLng(40.7128, -74.0060); // จุดส่ง (City Hall)
+  static const LatLng riderLocation = LatLng(
+    40.7295,
+    -73.9965,
+  ); // ตำแหน่ง Rider (NYU)
+  static const LatLng pickupLocation = LatLng(
+    40.7484,
+    -73.9857,
+  ); // จุดรับ (Empire State)
+  static const LatLng dropoffLocation = LatLng(
+    40.7128,
+    -74.0060,
+  ); // จุดส่ง (City Hall)
 
   // (Backend) ข้อมูลเส้นทาง (ข้อมูลจำลอง)
   final List<LatLng> _polylineCoordinates = [
@@ -34,7 +43,7 @@ class _TrackingPageState extends State<TrackingPage> {
 
   // (Backend) ข้อมูล Markers
   final Set<Marker> _markers = {};
-  
+
   // (Backend) ข้อมูลเส้นทาง
   final Set<Polyline> _polylines = {};
 
@@ -63,14 +72,18 @@ class _TrackingPageState extends State<TrackingPage> {
         Marker(
           markerId: const MarkerId("rider"),
           position: riderLocation,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueOrange,
+          ),
         ),
       );
       _markers.add(
         Marker(
           markerId: const MarkerId("pickup"),
           position: pickupLocation,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueGreen,
+          ),
         ),
       );
       _markers.add(
@@ -122,12 +135,7 @@ class _TrackingPageState extends State<TrackingPage> {
           ),
 
           // 2. การ์ดรายละเอียด (อยู่ด้านล่าง)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildDetailsPanel(),
-          ),
+          Positioned(left: 0, right: 0, bottom: 0, child: _buildDetailsPanel()),
         ],
       ),
     );
@@ -173,9 +181,12 @@ class _TrackingPageState extends State<TrackingPage> {
 
             _buildInfoRow(label: "สินค้า:", value: itemDescription),
             _buildInfoRowWithIcon(
-                label: "ผู้รับ:", value: receiverName, phone: receiverPhone),
+              label: "ผู้รับ:",
+              value: receiverName,
+              phone: receiverPhone,
+            ),
             _buildInfoRow(label: "ที่อยู่:", value: address),
-            
+
             // สถานะ (ทำให้เด่น)
             _buildInfoRow(
               label: "สถานะ:",
@@ -183,10 +194,13 @@ class _TrackingPageState extends State<TrackingPage> {
               valueColor: Colors.blue.shade700, // สีน้ำเงิน (ตามรูป)
               isBold: true,
             ),
-            
+
             _buildInfoRowWithIcon(
-                label: "Rider:", value: riderName, phone: riderPhone),
-            
+              label: "Rider:",
+              value: riderName,
+              phone: riderPhone,
+            ),
+
             const SizedBox(height: 16), // เว้นวรรค
           ],
         ),
@@ -203,7 +217,7 @@ class _TrackingPageState extends State<TrackingPage> {
     bool isBold = false,
   }) {
     const Color primaryText = Color(0xFF005FFF); // สีน้ำเงิน
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
@@ -236,7 +250,7 @@ class _TrackingPageState extends State<TrackingPage> {
     Color? valueColor,
   }) {
     const Color primaryText = Color(0xFF005FFF); // สีน้ำเงิน
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
@@ -248,7 +262,8 @@ class _TrackingPageState extends State<TrackingPage> {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Wrap( // ใช้ Wrap เผื่อหน้าจอเล็ก
+            child: Wrap(
+              // ใช้ Wrap เผื่อหน้าจอเล็ก
               crossAxisAlignment: WrapCrossAlignment.center,
               spacing: 8.0,
               runSpacing: 4.0,
@@ -264,11 +279,18 @@ class _TrackingPageState extends State<TrackingPage> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.phone_in_talk_rounded, color: Colors.green.shade600, size: 16),
+                    Icon(
+                      Icons.phone_in_talk_rounded,
+                      color: Colors.green.shade600,
+                      size: 16,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       phone,
-                      style: const TextStyle(fontSize: 15, color: Colors.black54),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Colors.black54,
+                      ),
                     ),
                   ],
                 ),
