@@ -59,5 +59,4 @@ class DefaultFirebaseOptions {
     projectId: 'flutter-firebase-deliver',
     storageBucket: 'flutter-firebase-deliver.firebasestorage.app',
   );
-
 }
