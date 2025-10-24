@@ -21,6 +21,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
 
   final TextEditingController _senderPhoneController = TextEditingController();
   List<String> _senderSavedAddresses = [];
+  late String senderName;
   String? _selectedSenderAddress;
 
   final TextEditingController _receiverPhoneController =
@@ -66,6 +67,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
         setState(() {
           _senderPhoneController.text = senderData['Phone'] ?? '';
           _senderSavedAddresses = List<String>.from(senderData['addr'] ?? []);
+          senderName = senderData['First_name'] + senderData['Last_name'];
           if (_senderSavedAddresses.isNotEmpty) {
             _selectedSenderAddress = _senderSavedAddresses.first;
           }
@@ -197,26 +199,9 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
     });
 
     try {
-      // String? imageUrl;
-
-      // String fileExtension = path.extension(_image!.path);
-      // String fileName =
-      //     '${DateTime.now().millisecondsSinceEpoch}$fileExtension';
-
-      // Reference storageRef = FirebaseStorage.instance
-      //     .ref()
-      //     .child('shipment_images')
-      //     .child(fileName);
-
-      // UploadTask uploadTask = storageRef.putFile(_image!);
-
-      // TaskSnapshot taskSnapshot = await uploadTask;
-
-      // imageUrl = await taskSnapshot.ref.getDownloadURL();
-
       final shipmentData = {
         'senderId': widget.uid,
-        // 'senderName': ,
+        'senderName': senderName,
         'receiverId': _foundReceiverId,
         'senderPhone': _senderPhoneController.text.toString(),
         'senderAddress': _selectedSenderAddress,
@@ -226,6 +211,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
         'quantity': _packageQuantityController.text,
         'details': _packageDetailsController.text.toString(),
         'notes': _packageNotesController.text.toString(),
+        'ridername': 'none',
         'timestamp': FieldValue.serverTimestamp(),
         'status': 'pending',
         // 'imageUrl': imageUrl,

@@ -134,11 +134,10 @@ class _NewJobsPageState extends State<NewJobsPage> {
 
               // (Backend) TODO: ดึงข้อมูลให้ครบถ้วน (อาจต้อง Query เพิ่มเติม)
               String packageId = doc.id;
-              String jobId =
-                  data['receiverAddress'] ?? 'N/A'; // สมมติว่ามี Job ID
+              String jobId = packageId ?? 'N/A'; // สมมติว่ามี Job ID
               String itemDesc = data['details'] ?? 'N/A';
               String senderName = data['senderName'] ?? 'Sender N/A';
-              String receiverName = data['receiverName'] ?? 'Receiver N/A';
+              String receiverName = data['receiverAddress'] ?? 'Receiver N/A';
               double distance =
                   data['distance'] ?? 0.0; // สมมติว่าคำนวณระยะทางมาแล้ว
 
