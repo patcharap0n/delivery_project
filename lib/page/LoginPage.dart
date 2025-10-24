@@ -193,7 +193,9 @@ class _LoginPageState extends State<LoginPage> {
       var userData = userquery.docs.first.data();
       String role = userData['Role'];
       if (role == "User") {
-        Get.to(HomeUser());
+        var userDoc = userquery.docs.first;
+        String uid = userDoc.id;
+        Get.offAll(() => HomeUser(uid: uid));
       }
     } else if (riderquery.docs.isNotEmpty) {
       var riderDoc = riderquery.docs.first;

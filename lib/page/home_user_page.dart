@@ -1,19 +1,82 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:delivery/page/create_shipment_page.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_navigation/get_navigation.dart';
 
-class HomeUser extends StatelessWidget {
-  // --- คุณสามารถดึงข้อมูลจริงมาแทนที่ตรงนี้ ---
-  final String userGreetingName = "User"; // จาก "สวัสดี User"
-  final String userName = "tun tung tung"; // จากใน Banner
-  final String userImageUrl = 
-      "https://static.wikia.nocookie.net/minecraft/images/f/fe/Villager_face.png/revision/latest"; // รูป Villager (ใช้ URL ชั่วคราว)
-  // ------------------------------------
+class HomeUser extends StatefulWidget {
+  final String uid;
 
-  const HomeUser({super.key});
+  const HomeUser({super.key, required this.uid});
+
+  @override
+  State<HomeUser> createState() => _HomeUserState();
+}
+
+class _HomeUserState extends State<HomeUser> {
+  String? userGreetingName;
+  String? userName;
+  String? userImageUrl;
+  bool _isLoading = true;
+
+  final String defaultImageUrl =
+      'https://static.wikia.nocookie.net/minecraft/images/f/fe/Villager_face.png/revision/latest';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  /// โหลดข้อมูล User จาก Firestore
+  Future<void> _fetchUserData() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('User')
+          .doc(widget.uid)
+          .get();
+
+      if (!snapshot.exists) throw Exception("ไม่พบ User");
+
+      final data = snapshot.data() as Map<String, dynamic>;
+      final String? imageUrlFromFirestore = data['Image'];
+      if (mounted) {
+        setState(() {
+          userName =
+              "${data['First_name'] ?? 'User'} ${data['Last_name'] ?? ''}"
+                  .trim();
+          userGreetingName = data['First_name'] ?? 'User';
+          userImageUrl =
+              (imageUrlFromFirestore != null &&
+                  imageUrlFromFirestore.isNotEmpty)
+              ? imageUrlFromFirestore
+              : defaultImageUrl;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print("❌ Error fetching user data: $e");
+      if (mounted) {
+        setState(() {
+          userName = "User";
+          userGreetingName = "User";
+          userImageUrl = defaultImageUrl;
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // สีหลักของแอป (จากในรูป)
     const Color primaryColor = Color(0xFF005FFF);
+
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -25,10 +88,10 @@ class HomeUser extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 20),
-                
+
                 // --- ส่วนทักทายด้านบน ---
                 Text(
-                  "สวัสดี $userGreetingName",
+                  "สวัสดี User",
                   style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -38,21 +101,18 @@ class HomeUser extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   "ทุกการส่งของของคุณ คือรอยยิ้มของคนที่รอรับ",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
 
                 // --- Banner สีน้ำเงิน ---
-                _buildWelcomeBanner(primaryColor, userName, userImageUrl),
-                
+                _buildWelcomeBanner(primaryColor, userName!, userImageUrl!),
+
                 const SizedBox(height: 20),
 
                 // --- ปุ่มเมนู 2 ปุ่ม ---
-                _buildNavigationButtons(context, primaryColor),
+                _buildUserNavigationButtons(context, primaryColor),
 
                 const SizedBox(height: 20),
 
@@ -66,8 +126,11 @@ class HomeUser extends StatelessWidget {
     );
   }
 
-  // Helper Widget 1: Banner สีน้ำเงิน
-  Widget _buildWelcomeBanner(Color primaryColor, String userName, String imageUrl) {
+  Widget _buildWelcomeBanner(
+    Color primaryColor,
+    String userName,
+    String imageUrl,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20.0),
@@ -79,7 +142,7 @@ class HomeUser extends StatelessWidget {
             color: primaryColor.withOpacity(0.3),
             blurRadius: 10,
             offset: const Offset(0, 5),
-          )
+          ),
         ],
       ),
       child: Row(
@@ -100,10 +163,7 @@ class HomeUser extends StatelessWidget {
                 const SizedBox(height: 4),
                 const Text(
                   "เราเชื่อว่าคุณมีช่วงเวลาดีๆ",
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.white70),
                 ),
               ],
             ),
@@ -112,17 +172,35 @@ class HomeUser extends StatelessWidget {
           CircleAvatar(
             radius: 32,
             backgroundColor: Colors.white,
-            // คุณสามารถเปลี่ยนเป็น AssetImage ถ้ามีรูปในโปรเจกต์
-            // หรือใช้ NetworkImage ถ้าดึง URL รูปมาจาก Firestore
-            backgroundImage: NetworkImage(imageUrl), 
+            child: ClipOval(
+              child: Image.network(
+                userImageUrl ?? defaultImageUrl,
+                width: 64,
+                height: 64,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return Image.network(
+                    defaultImageUrl,
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.cover,
+                  );
+                },
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // Helper Widget 2: ปุ่มเมนู 2 ปุ่ม
-  Widget _buildNavigationButtons(BuildContext context, Color primaryColor) {
+  Widget _buildUserNavigationButtons(BuildContext context, Color primaryColor) {
     return Row(
       children: [
         Expanded(
@@ -131,7 +209,6 @@ class HomeUser extends StatelessWidget {
             label: "ของที่กำลังส่ง",
             primaryColor: primaryColor,
             onPressed: () {
-              // TODO: ไปยังหน้า "ของที่กำลังส่ง"
               print("ไปหน้าของที่กำลังส่ง");
             },
           ),
@@ -143,7 +220,6 @@ class HomeUser extends StatelessWidget {
             label: "ของที่ได้รับ",
             primaryColor: primaryColor,
             onPressed: () {
-              // TODO: ไปยังหน้า "ของที่ได้รับ"
               print("ไปหน้าของที่ได้รับ");
             },
           ),
@@ -152,7 +228,6 @@ class HomeUser extends StatelessWidget {
     );
   }
 
-  // ปุ่มที่ใช้ซ้ำใน _buildNavigationButtons
   Widget _buildMenuButton({
     required BuildContext context,
     required String label,
@@ -163,8 +238,8 @@ class HomeUser extends StatelessWidget {
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         backgroundColor: Colors.white,
-        foregroundColor: primaryColor, // สีตัวอักษร
-        side: BorderSide(color: Colors.grey[300]!), // สีขอบ
+        foregroundColor: primaryColor,
+        side: BorderSide(color: Colors.grey[300]!),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
         ),
@@ -172,19 +247,15 @@ class HomeUser extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
     );
   }
 
-  // Helper Widget 3: การ์ด "ส่งพัสดุ"
   Widget _buildCreateShipmentCard(BuildContext context, Color primaryColor) {
     return GestureDetector(
       onTap: () {
-        // TODO: ไปยังหน้า "สร้างรายการส่งของ"
+        Get.to(() => CreateShipmentPage(uid: widget.uid));
         print("ไปหน้าส่งพัสดุ");
       },
       child: Container(
@@ -196,11 +267,7 @@ class HomeUser extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.archive_outlined, // Icon รูปกล่อง
-              color: primaryColor,
-              size: 44,
-            ),
+            Icon(Icons.archive_outlined, color: primaryColor, size: 44),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -217,10 +284,7 @@ class HomeUser extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     "เรียกรถให้มารับพัสดุหรือส่งพัสดุของคุณ",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                 ],
               ),

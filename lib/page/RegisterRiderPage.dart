@@ -36,8 +36,8 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
   // **กำหนดค่า Cloudinary ที่นี่**
   // ***เปลี่ยนค่า 'YOUR_CLOUD_NAME' และ 'YOUR_UNSIGNED_PRESET' ด้วยค่าจริงของคุณ***
   final cloudinary = CloudinaryPublic(
-    'YOUR_CLOUD_NAME', // <--- Cloud Name
-    'YOUR_UNSIGNED_PRESET', // <--- ชื่อ Upload Preset (ต้องเป็น Unsigned)
+    'dpar6zwks', // <--- Cloud Name
+    'delivery', // <--- ชื่อ Upload Preset (ต้องเป็น Unsigned)
     cache: false,
   );
 

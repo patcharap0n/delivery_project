@@ -1,11 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery/page/GPSandMapPage.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+
+// Cloudinary
+import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:latlong2/latlong.dart' as latlong2;
-import 'package:google_maps_flutter/google_maps_flutter.dart' as gmap;
 
 class RegisterUserPage extends StatefulWidget {
   final String role;
@@ -22,51 +23,88 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  File? _image; // เก็บรูปภาพ
+  File? _tempImageFile; // ไฟล์รูปชั่วคราว
+  String? _imageUrl; // URL หลังอัปโหลด
+
   List<String> _addresses = []; // เก็บที่อยู่จาก GPS
 
   final ImagePicker _picker = ImagePicker();
 
-  // ฟังก์ชันเลือกภาพจากเครื่อง
+  // Cloudinary
+  final cloudinary = CloudinaryPublic(
+    'dpar6zwks', // Cloud Name
+    'delivery', // Upload Preset (Unsigned)
+    cache: false,
+  );
+
+  // ฟังก์ชันเลือกภาพ
   Future<void> pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
-        _image = File(pickedFile.path);
+        _tempImageFile = File(pickedFile.path);
       });
     }
   }
 
-  void register() {
-    if (_formKey.currentState!.validate()) {
+  // ฟังก์ชันอัปโหลด Cloudinary
+  Future<String?> _uploadAndGetUrl(File? file, String folderName) async {
+    if (file == null) return null;
+
+    try {
+      CloudinaryResponse response = await cloudinary.uploadFile(
+        CloudinaryFile.fromFile(
+          file.path,
+          resourceType: CloudinaryResourceType.Image,
+          folder: folderName,
+        ),
+      );
+      return response.secureUrl;
+    } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('กำลังลงทะเบียน...')));
+      ).showSnackBar(SnackBar(content: Text('อัปโหลดรูปภาพล้มเหลว: $e')));
+      return null;
+    }
+  }
+
+  void register() async {
+    if (_formKey.currentState!.validate()) {
+      // ตรวจสอบว่ามีรูปภาพหรือไม่
+      if (_tempImageFile == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('กรุณาเลือกภาพผู้ใช้')));
+        return;
+      }
+
+      // อัปโหลดรูป
+      String? url = await _uploadAndGetUrl(
+        _tempImageFile,
+        'user_profile_images',
+      );
+      if (url == null) return;
+
+      setState(() {
+        _imageUrl = url;
+      });
+
+      // บันทึกลง Firestore
       var db = FirebaseFirestore.instance;
       var data = {
-        'First name': _firstNameController.text,
-        'Last name': _lastNameController.text,
+        'First_name': _firstNameController.text,
+        'Last_name': _lastNameController.text,
         'Phone': _phoneController.text,
         'Password': _passwordController.text,
         'addr': _addresses,
-        'Image': _image?.path,
+        'Image': _imageUrl, // ใช้ URL จาก Cloudinary
         'Role': widget.role,
       };
-      db.collection('User').doc().set(data);
+      await db.collection('User').doc().set(data);
 
-      // print แบบ readable
-      print('Role: ${widget.role}');
-      print('ชื่อ: ${_firstNameController.text}');
-      print('สกุล: ${_lastNameController.text}');
-      print('เบอร์: ${_phoneController.text}');
-      print('รหัสผ่าน: ${_passwordController.text}');
-
-      print('ที่อยู่ทั้งหมด:');
-      for (var addr in _addresses) {
-        print('- $addr');
-      }
-
-      print('รูปภาพ: ${_image?.path}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ลงทะเบียน User สำเร็จแล้ว')),
+      );
     }
   }
 
@@ -110,7 +148,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // ปุ่มเลือก GPS
                 ElevatedButton(
                   onPressed: () async {
                     await Navigator.push(
@@ -141,23 +178,22 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                       icon: const Icon(Icons.close),
                       onPressed: () {
                         setState(() {
-                          _addresses.removeAt(i); // ลบรายการนี้
+                          _addresses.removeAt(i);
                         });
                       },
                     ),
                   ),
                 const SizedBox(height: 16),
 
-                // ปุ่มเลือกภาพจากเครื่อง
                 ElevatedButton.icon(
                   onPressed: pickImage,
                   icon: const Icon(Icons.image),
                   label: const Text('เลือกภาพจากเครื่อง'),
                 ),
-                if (_image != null)
+                if (_tempImageFile != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Image.file(_image!, height: 100),
+                    child: Image.file(_tempImageFile!, height: 100),
                   ),
 
                 const SizedBox(height: 24),

@@ -1,14 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 
 class HomeRider extends StatefulWidget {
-  // --- 1. เปลี่ยนชื่อเป็น riderId เพื่อความชัดเจน ---
   final String riderId;
 
-  const HomeRider({
-    super.key,
-    required this.riderId, // <-- รับ riderId มา
-  });
+  const HomeRider({super.key, required this.riderId});
 
   @override
   State<HomeRider> createState() => _HomeRiderState();
@@ -26,44 +23,36 @@ class _HomeRiderState extends State<HomeRider> {
     _fetchRiderData();
   }
 
-  // --- 2. แก้ไขฟังก์ชันดึงข้อมูลทั้งหมด ---
+  /// โหลดข้อมูล Rider จาก Firestore Database
   Future<void> _fetchRiderData() async {
     try {
-      if (widget.riderId.isEmpty) {
-        throw Exception("ไม่ได้รับ Rider ID");
-      }
-
-      // --- 3. แก้ไข Query ให้ตรงกับฐานข้อมูล ---
-      // เราจะดึงเอกสารโดยตรงจาก 'riders/{riderId}'
       final snapshot = await FirebaseFirestore.instance
-          .collection('riders') // <-- 1. ไปที่ Collection 'riders'
-          .doc(widget.riderId) // <-- 2. เลือกเอกสารด้วย ID ที่ได้รับมา
-          .get(); // <-- 3. ดึงข้อมูล
+          .collection('riders')
+          .doc(widget.riderId)
+          .get();
 
-      if (!snapshot.exists) {
-        // 4. เช็กว่ามีเอกสารนี้จริงหรือไม่
-        throw Exception("ไม่พบข้อมูล Rider (ID: ${widget.riderId})");
-      }
+      if (!snapshot.exists) throw Exception("ไม่พบ Rider");
 
-      // 5. ดึงข้อมูลจาก DocumentSnapshot (ไม่ใช่ QuerySnapshot)
       final data = snapshot.data() as Map<String, dynamic>;
-
+      final String? urlFromFirestore = data['RiderImageUrl'];
+      print("🔗 RiderImageUrl: $riderImageUrl");
       if (mounted) {
         setState(() {
-          // 6. ใช้ Field 'Name' และ 'RiderImage' (ตรงกับ DB)
-          riderName = data['Name'] ?? "Rider (ไม่มีชื่อ)";
+          riderName = data['Name'] ?? "Rider";
           riderGreetingName = data['Name'] ?? "Rider";
-          riderImageUrl = data['RiderImage'] ?? _getDefaultImageUrl();
+          riderImageUrl =
+              (urlFromFirestore != null && urlFromFirestore.isNotEmpty)
+              ? urlFromFirestore
+              : _getDefaultImageUrl();
           _isLoading = false;
         });
       }
     } catch (e) {
-      // จัดการ Error
       print("Error fetching rider data: $e");
       if (mounted) {
         setState(() {
-          riderGreetingName = "Rider";
           riderName = "เกิดข้อผิดพลาด";
+          riderGreetingName = "Rider";
           riderImageUrl = _getDefaultImageUrl();
           _isLoading = false;
         });
@@ -71,8 +60,9 @@ class _HomeRiderState extends State<HomeRider> {
     }
   }
 
+  /// URL รูป default กรณีไม่เจอหรือโหลดผิดพลาด
   String _getDefaultImageUrl() {
-    return "https://static.wikia.nocookie.net/minecraft/images/f/fe/Villager_face.png/revision/latest";
+    return 'https://static.wikia.nocookie.net/minecraft/images/f/fe/Villager_face.png/revision/latest';
   }
 
   @override
@@ -100,9 +90,9 @@ class _HomeRiderState extends State<HomeRider> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 20),
-                Text(
+                const Text(
                   "สวัสดี Rider",
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
@@ -126,7 +116,6 @@ class _HomeRiderState extends State<HomeRider> {
     );
   }
 
-  // Helper 1: Banner
   Widget _buildWelcomeBanner(
     Color primaryColor,
     String userName,
@@ -175,17 +164,13 @@ class _HomeRiderState extends State<HomeRider> {
             backgroundColor: Colors.white,
             child: ClipOval(
               child: Image.network(
-                imageUrl,
+                riderImageUrl ?? _getDefaultImageUrl(),
                 width: 64,
                 height: 64,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
-                  return Image.network(
-                    _getDefaultImageUrl(),
-                    width: 64,
-                    height: 64,
-                    fit: BoxFit.cover,
-                  );
+                  print("❌ โหลดรูปไม่สำเร็จ: $error");
+                  return Image.network(_getDefaultImageUrl());
                 },
                 loadingBuilder: (context, child, loadingProgress) {
                   if (loadingProgress == null) return child;
@@ -204,7 +189,6 @@ class _HomeRiderState extends State<HomeRider> {
     );
   }
 
-  // Helper 2: Navigation Buttons
   Widget _buildRiderNavigationButtons(
     BuildContext context,
     Color primaryColor,
@@ -236,7 +220,6 @@ class _HomeRiderState extends State<HomeRider> {
     );
   }
 
-  // Helper 3: Menu Button
   Widget _buildMenuButton({
     required BuildContext context,
     required String label,
