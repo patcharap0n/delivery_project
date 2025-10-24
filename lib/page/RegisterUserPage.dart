@@ -73,9 +73,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
         Get.to(() => LoginPage());
       }
     } catch (err) {}
-
-      print('รูปภาพ: ${_image?.path}');
-    }
   }
 
   @override

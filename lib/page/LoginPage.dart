@@ -199,16 +199,10 @@ class _LoginPageState extends State<LoginPage> {
         Get.to(() => HomeUser(uid: uid));
       }
     } else if (riderquery.docs.isNotEmpty) {
-      var riderDoc = riderquery.docs.first;
-      var userData = riderDoc.data();
-
-      // 4. สร้างตัวแปร 'riderId'
-      String riderId = riderDoc.id;
-
+      var userData = riderquery.docs.first.data();
       String role = userData['Role'];
       if (role == "Rider") {
-        // 5. ส่ง 'riderId' เข้าไปใน constructor
-        Get.offAll(() => HomeRider(riderId: riderId));
+        Get.to(HomeRider());
       } else {
         Get.snackbar("Error", "Role ไม่ถูกต้อง");
       }

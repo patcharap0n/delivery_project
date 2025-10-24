@@ -1,94 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
-class HomeRider extends StatefulWidget {
-  // --- 1. เปลี่ยนชื่อเป็น riderId เพื่อความชัดเจน ---
-  final String riderId;
+class HomeRider extends StatelessWidget {
+  // --- ตัวแปรสำหรับ Backend นำไปต่อยอด ---
+  final String riderGreetingName = "Rider"; // "สวัสดี Rider"
+  final String riderName = "tun tung tung"; // ชื่อใน Banner
+  final String riderImageUrl = 
+      "https://static.wikia.nocookie.net/minecraft/images/f/fe/Villager_face.png/revision/latest"; // รูปโปรไฟล์ (ใช้ URL ชั่วคราว)
+  // ------------------------------------
 
-  const HomeRider({
-    super.key,
-    required this.riderId, // <-- รับ riderId มา
-  });
-
-  @override
-  State<HomeRider> createState() => _HomeRiderState();
-}
-
-class _HomeRiderState extends State<HomeRider> {
-  String? riderGreetingName;
-  String? riderName;
-  String? riderImageUrl;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchRiderData();
-  }
-
-  // --- 2. แก้ไขฟังก์ชันดึงข้อมูลทั้งหมด ---
-  Future<void> _fetchRiderData() async {
-    try {
-      if (widget.riderId.isEmpty) {
-        throw Exception("ไม่ได้รับ Rider ID");
-      }
-
-      // --- 3. แก้ไข Query ให้ตรงกับฐานข้อมูล ---
-      // เราจะดึงเอกสารโดยตรงจาก 'riders/{riderId}'
-      final snapshot = await FirebaseFirestore.instance
-          .collection('riders') // <-- 1. ไปที่ Collection 'riders'
-          .doc(widget.riderId) // <-- 2. เลือกเอกสารด้วย ID ที่ได้รับมา
-          .get(); // <-- 3. ดึงข้อมูล
-
-      if (!snapshot.exists) {
-        // 4. เช็กว่ามีเอกสารนี้จริงหรือไม่
-        throw Exception("ไม่พบข้อมูล Rider (ID: ${widget.riderId})");
-      }
-
-      // 5. ดึงข้อมูลจาก DocumentSnapshot (ไม่ใช่ QuerySnapshot)
-      final data = snapshot.data() as Map<String, dynamic>;
-
-      if (mounted) {
-        setState(() {
-          // 6. ใช้ Field 'Name' และ 'RiderImage' (ตรงกับ DB)
-          riderName = data['Name'] ?? "Rider (ไม่มีชื่อ)";
-          riderGreetingName = data['Name'] ?? "Rider";
-          riderImageUrl = data['RiderImage'] ?? _getDefaultImageUrl();
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      // จัดการ Error
-      print("Error fetching rider data: $e");
-      if (mounted) {
-        setState(() {
-          riderGreetingName = "Rider";
-          riderName = "เกิดข้อผิดพลาด";
-          riderImageUrl = _getDefaultImageUrl();
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  String _getDefaultImageUrl() {
-    return "https://static.wikia.nocookie.net/minecraft/images/f/fe/Villager_face.png/revision/latest";
-  }
+  const HomeRider({super.key});
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF005FFF);
-
-    if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-          ),
-        ),
-      );
-    }
+    const Color primaryColor = Color(0xFF005FFF); // สีหลัก
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -100,8 +24,10 @@ class _HomeRiderState extends State<HomeRider> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 20),
+                
+                // --- ส่วนทักทายด้านบน ---
                 Text(
-                  "สวัสดี Rider",
+                  "สวัสดี $riderGreetingName", // <-- ใช้ตัวแปร
                   style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -111,12 +37,24 @@ class _HomeRiderState extends State<HomeRider> {
                 const SizedBox(height: 8),
                 Text(
                   "ขอให้ทุกการเดินทางของคุณปลอดภัย มีแต่ความสุขและราบรื่น",
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
-                _buildWelcomeBanner(primaryColor, riderName!, riderImageUrl!),
+
+                // --- Banner สีน้ำเงิน ---
+                _buildWelcomeBanner(
+                  primaryColor,
+                  riderName,    // <-- ใช้ตัวแปร
+                  riderImageUrl // <-- ใช้ตัวแปร
+                ),
+                
                 const SizedBox(height: 20),
+
+                // --- ปุ่มเมนู 2 ปุ่ม (ของ Rider) ---
                 _buildRiderNavigationButtons(context, primaryColor),
               ],
             ),
@@ -126,12 +64,8 @@ class _HomeRiderState extends State<HomeRider> {
     );
   }
 
-  // Helper 1: Banner
-  Widget _buildWelcomeBanner(
-    Color primaryColor,
-    String userName,
-    String imageUrl,
-  ) {
+  // Helper Widget 1: Banner สีน้ำเงิน
+  Widget _buildWelcomeBanner(Color primaryColor, String userName, String imageUrl) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20.0),
@@ -143,7 +77,7 @@ class _HomeRiderState extends State<HomeRider> {
             color: primaryColor.withOpacity(0.3),
             blurRadius: 10,
             offset: const Offset(0, 5),
-          ),
+          )
         ],
       ),
       child: Row(
@@ -153,7 +87,7 @@ class _HomeRiderState extends State<HomeRider> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "สวัสดี $userName",
+                  "สวัสดี $userName", // <-- ใช้ตัวแปร
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -164,7 +98,10 @@ class _HomeRiderState extends State<HomeRider> {
                 const SizedBox(height: 4),
                 const Text(
                   "เราเชื่อว่าคุณมีช่วงเวลาดีๆ",
-                  style: TextStyle(fontSize: 14, color: Colors.white70),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white70,
+                  ),
                 ),
               ],
             ),
@@ -173,42 +110,17 @@ class _HomeRiderState extends State<HomeRider> {
           CircleAvatar(
             radius: 32,
             backgroundColor: Colors.white,
-            child: ClipOval(
-              child: Image.network(
-                imageUrl,
-                width: 64,
-                height: 64,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Image.network(
-                    _getDefaultImageUrl(),
-                    width: 64,
-                    height: 64,
-                    fit: BoxFit.cover,
-                  );
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  );
-                },
-              ),
-            ),
+            // ใช้ NetworkImage สำหรับ URL
+            // หรือเปลี่ยนเป็น AssetImage ถ้ามีรูปในโปรเจกต์
+            backgroundImage: NetworkImage(imageUrl), 
           ),
         ],
       ),
     );
   }
 
-  // Helper 2: Navigation Buttons
-  Widget _buildRiderNavigationButtons(
-    BuildContext context,
-    Color primaryColor,
-  ) {
+  // Helper Widget 2: ปุ่มเมนู 2 ปุ่ม (สำหรับ Rider)
+  Widget _buildRiderNavigationButtons(BuildContext context, Color primaryColor) {
     return Row(
       children: [
         Expanded(
@@ -217,6 +129,7 @@ class _HomeRiderState extends State<HomeRider> {
             label: "งานใหม่",
             primaryColor: primaryColor,
             onPressed: () {
+              // TODO: ไปยังหน้า "แสดงรายการงานใหม่"
               print("ไปหน้างานใหม่");
             },
           ),
@@ -228,6 +141,7 @@ class _HomeRiderState extends State<HomeRider> {
             label: "งานที่ทำอยู่",
             primaryColor: primaryColor,
             onPressed: () {
+              // TODO: ไปยังหน้า "งานที่กำลังทำ" (ถ้ามี)
               print("ไปหน้างานที่ทำอยู่");
             },
           ),
@@ -236,7 +150,7 @@ class _HomeRiderState extends State<HomeRider> {
     );
   }
 
-  // Helper 3: Menu Button
+  // Helper Widget 3: ปุ่มที่ใช้ซ้ำ
   Widget _buildMenuButton({
     required BuildContext context,
     required String label,
@@ -247,8 +161,8 @@ class _HomeRiderState extends State<HomeRider> {
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         backgroundColor: Colors.white,
-        foregroundColor: primaryColor,
-        side: BorderSide(color: Colors.grey[300]!),
+        foregroundColor: primaryColor, // สีตัวอักษร
+        side: BorderSide(color: Colors.grey[300]!), // สีขอบ
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
         ),
@@ -256,7 +170,10 @@ class _HomeRiderState extends State<HomeRider> {
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
