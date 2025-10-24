@@ -1,10 +1,18 @@
+import 'package:delivery/page/LoginPage.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+// --- 1. Import หน้าใหม่เข้ามา ---
+import 'package:delivery/page/new_jobs_page.dart';        // (ต้องสร้างไฟล์นี้)
+import 'package:delivery/page/current_job_page.dart';    // (ต้องสร้างไฟล์นี้)
+import 'package:delivery/page/edit_rider_profile_page.dart'; // (ต้องสร้างไฟล์นี้)
+// (เช็ค Path ให้ถูกต้อง)
 
 class HomeRider extends StatelessWidget {
   // --- ตัวแปรสำหรับ Backend นำไปต่อยอด ---
   final String riderGreetingName = "Rider"; // "สวัสดี Rider"
   final String riderName = "tun tung tung"; // ชื่อใน Banner
-  final String riderImageUrl = 
+  final String riderImageUrl =
       "https://static.wikia.nocookie.net/minecraft/images/f/fe/Villager_face.png/revision/latest"; // รูปโปรไฟล์ (ใช้ URL ชั่วคราว)
   // ------------------------------------
 
@@ -16,6 +24,24 @@ class HomeRider extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text(
+          "หน้าหลัก Rider", // <-- เปลี่ยน Title เล็กน้อย
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.black),
+            tooltip: 'กลับไปหน้า Login',
+            onPressed: () {
+              Get.offAll(() => const LoginPage());
+            },
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -24,7 +50,7 @@ class HomeRider extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 20),
-                
+
                 // --- ส่วนทักทายด้านบน ---
                 Text(
                   "สวัสดี $riderGreetingName", // <-- ใช้ตัวแปร
@@ -47,11 +73,11 @@ class HomeRider extends StatelessWidget {
 
                 // --- Banner สีน้ำเงิน ---
                 _buildWelcomeBanner(
-                  primaryColor,
-                  riderName,    // <-- ใช้ตัวแปร
-                  riderImageUrl // <-- ใช้ตัวแปร
-                ),
-                
+                    primaryColor,
+                    riderName, // <-- ใช้ตัวแปร
+                    riderImageUrl // <-- ใช้ตัวแปร
+                    ),
+
                 const SizedBox(height: 20),
 
                 // --- ปุ่มเมนู 2 ปุ่ม (ของ Rider) ---
@@ -107,13 +133,20 @@ class HomeRider extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-          CircleAvatar(
-            radius: 32,
-            backgroundColor: Colors.white,
-            // ใช้ NetworkImage สำหรับ URL
-            // หรือเปลี่ยนเป็น AssetImage ถ้ามีรูปในโปรเจกต์
-            backgroundImage: NetworkImage(imageUrl), 
+
+          // --- 2. แก้ไขตรงนี้: เพิ่ม GestureDetector ให้ CircleAvatar ---
+          GestureDetector(
+            onTap: () {
+              // ไปหน้า Edit Rider Profile
+              Get.to(() => const EditRiderProfilePage());
+            },
+            child: CircleAvatar(
+              radius: 32,
+              backgroundColor: Colors.white,
+              backgroundImage: NetworkImage(imageUrl),
+            ),
           ),
+          // --- สิ้นสุดการแก้ไข ---
         ],
       ),
     );
@@ -129,8 +162,8 @@ class HomeRider extends StatelessWidget {
             label: "งานใหม่",
             primaryColor: primaryColor,
             onPressed: () {
-              // TODO: ไปยังหน้า "แสดงรายการงานใหม่"
-              print("ไปหน้างานใหม่");
+              // --- 3. แก้ไขตรงนี้: ไปหน้า NewJobsPage ---
+              Get.to(() => const NewJobsPage());
             },
           ),
         ),
@@ -141,8 +174,8 @@ class HomeRider extends StatelessWidget {
             label: "งานที่ทำอยู่",
             primaryColor: primaryColor,
             onPressed: () {
-              // TODO: ไปยังหน้า "งานที่กำลังทำ" (ถ้ามี)
-              print("ไปหน้างานที่ทำอยู่");
+              // --- 4. แก้ไขตรงนี้: ไปหน้า CurrentJobPage ---
+              Get.to(() => const CurrentJobPage());
             },
           ),
         ),
@@ -157,7 +190,8 @@ class HomeRider extends StatelessWidget {
     required Color primaryColor,
     required VoidCallback onPressed,
   }) {
-    return OutlinedButton(
+    // ... (โค้ดเหมือนเดิม) ...
+     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         backgroundColor: Colors.white,
