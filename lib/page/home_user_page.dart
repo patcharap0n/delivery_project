@@ -1,12 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery/page/create_shipment_page.dart';
+import 'package:delivery/page/received_items_page.dart';
+import 'package:delivery/page/transit_items_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_navigation/get_navigation.dart';
 
 class HomeUser extends StatefulWidget {
   final String uid;
-
   const HomeUser({super.key, required this.uid});
 
   @override
@@ -14,69 +15,43 @@ class HomeUser extends StatefulWidget {
 }
 
 class _HomeUserState extends State<HomeUser> {
-  String? userGreetingName;
-  String? userName;
-  String? userImageUrl;
-  bool _isLoading = true;
-
-  final String defaultImageUrl =
-      'https://static.wikia.nocookie.net/minecraft/images/f/fe/Villager_face.png/revision/latest';
+  String userGreetingName = "User"; // ค่าเริ่มต้น
+  String userName = "User"; // ค่าเริ่มต้น
+  final String userImageUrl =
+      "https://static.wikia.nocookie.net/minecraft/images/f/fe/Villager_face.png/revision/latest"; // รูป Villager (ใช้ URL ชั่วคราว)
 
   @override
   void initState() {
     super.initState();
-    _fetchUserData();
+    _loadUserData(); // เรียกฟังก์ชันดึงข้อมูล
   }
 
-  /// โหลดข้อมูล User จาก Firestore
-  Future<void> _fetchUserData() async {
+  Future<void> _loadUserData() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('User')
-          .doc(widget.uid)
-          .get();
+      var db = FirebaseFirestore.instance;
+      var userRef = db.collection('User');
 
-      if (!snapshot.exists) throw Exception("ไม่พบ User");
+      final userdata = await userRef.doc(widget.uid).get();
 
-      final data = snapshot.data() as Map<String, dynamic>;
-      final String? imageUrlFromFirestore = data['Image'];
-      if (mounted) {
+      if (userdata.exists) {
+        final data = userdata.data();
+
+        final firstName = data?['First_name'] ?? 'User';
+        final lastName = data?['Last_name'] ?? '';
+
         setState(() {
-          userName =
-              "${data['First_name'] ?? 'User'} ${data['Last_name'] ?? ''}"
-                  .trim();
-          userGreetingName = data['First_name'] ?? 'User';
-          userImageUrl =
-              (imageUrlFromFirestore != null &&
-                  imageUrlFromFirestore.isNotEmpty)
-              ? imageUrlFromFirestore
-              : defaultImageUrl;
-          _isLoading = false;
+          userName = "$firstName $lastName".trim();
+          userGreetingName = firstName;
         });
       }
     } catch (e) {
-      print("❌ Error fetching user data: $e");
-      if (mounted) {
-        setState(() {
-          userName = "User";
-          userGreetingName = "User";
-          userImageUrl = defaultImageUrl;
-          _isLoading = false;
-        });
-      }
+      debugPrint("❌ เกิดข้อผิดพลาดในการดึงข้อมูล User: $e");
     }
   }
 
   @override
   Widget build(BuildContext context) {
     const Color primaryColor = Color(0xFF005FFF);
-
-    if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -91,7 +66,7 @@ class _HomeUserState extends State<HomeUser> {
 
                 // --- ส่วนทักทายด้านบน ---
                 Text(
-                  "สวัสดี User",
+                  "สวัสดี $userGreetingName",
                   style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -107,12 +82,12 @@ class _HomeUserState extends State<HomeUser> {
                 const SizedBox(height: 24),
 
                 // --- Banner สีน้ำเงิน ---
-                _buildWelcomeBanner(primaryColor, userName!, userImageUrl!),
+                _buildWelcomeBanner(primaryColor, userName, userImageUrl),
 
                 const SizedBox(height: 20),
 
                 // --- ปุ่มเมนู 2 ปุ่ม ---
-                _buildUserNavigationButtons(context, primaryColor),
+                _buildNavigationButtons(context, primaryColor),
 
                 const SizedBox(height: 20),
 
@@ -172,35 +147,15 @@ class _HomeUserState extends State<HomeUser> {
           CircleAvatar(
             radius: 32,
             backgroundColor: Colors.white,
-            child: ClipOval(
-              child: Image.network(
-                userImageUrl ?? defaultImageUrl,
-                width: 64,
-                height: 64,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return Image.network(
-                    defaultImageUrl,
-                    width: 64,
-                    height: 64,
-                    fit: BoxFit.cover,
-                  );
-                },
-              ),
-            ),
+            backgroundImage: NetworkImage(imageUrl),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildUserNavigationButtons(BuildContext context, Color primaryColor) {
+  // Helper Widget 2: ปุ่มเมนู 2 ปุ่ม
+  Widget _buildNavigationButtons(BuildContext context, Color primaryColor) {
     return Row(
       children: [
         Expanded(
@@ -209,7 +164,7 @@ class _HomeUserState extends State<HomeUser> {
             label: "ของที่กำลังส่ง",
             primaryColor: primaryColor,
             onPressed: () {
-              print("ไปหน้าของที่กำลังส่ง");
+              Get.to(() => ReceivedItemsPage(uid: widget.uid));
             },
           ),
         ),
@@ -220,7 +175,7 @@ class _HomeUserState extends State<HomeUser> {
             label: "ของที่ได้รับ",
             primaryColor: primaryColor,
             onPressed: () {
-              print("ไปหน้าของที่ได้รับ");
+              Get.to(() => TransitItemsPage(uid: widget.uid));
             },
           ),
         ),
@@ -228,6 +183,7 @@ class _HomeUserState extends State<HomeUser> {
     );
   }
 
+  // ปุ่มที่ใช้ซ้ำใน _buildNavigationButtons
   Widget _buildMenuButton({
     required BuildContext context,
     required String label,
@@ -238,8 +194,8 @@ class _HomeUserState extends State<HomeUser> {
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         backgroundColor: Colors.white,
-        foregroundColor: primaryColor,
-        side: BorderSide(color: Colors.grey[300]!),
+        foregroundColor: primaryColor, // สีตัวอักษร
+        side: BorderSide(color: Colors.grey[300]!), // สีขอบ
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
         ),
@@ -252,9 +208,11 @@ class _HomeUserState extends State<HomeUser> {
     );
   }
 
+  // Helper Widget 3: การ์ด "ส่งพัสดุ"
   Widget _buildCreateShipmentCard(BuildContext context, Color primaryColor) {
     return GestureDetector(
       onTap: () {
+        // 12. แก้จาก this.uid เป็น widget.uid
         Get.to(() => CreateShipmentPage(uid: widget.uid));
         print("ไปหน้าส่งพัสดุ");
       },
@@ -267,7 +225,11 @@ class _HomeUserState extends State<HomeUser> {
         ),
         child: Row(
           children: [
-            Icon(Icons.archive_outlined, color: primaryColor, size: 44),
+            Icon(
+              Icons.archive_outlined, // Icon รูปกล่อง
+              color: primaryColor,
+              size: 44,
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
