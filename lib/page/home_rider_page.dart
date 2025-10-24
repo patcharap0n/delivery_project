@@ -208,7 +208,7 @@ class _HomeRiderState extends State<HomeRider> {
             label: "งานใหม่",
             primaryColor: primaryColor,
             onPressed: () {
-              Get.to(() => const NewJobsPage());
+              Get.to(() => NewJobsPage(uid: widget.riderId));
             },
           ),
         ),
@@ -219,7 +219,7 @@ class _HomeRiderState extends State<HomeRider> {
             label: "งานที่ทำอยู่",
             primaryColor: primaryColor,
             onPressed: () {
-              Get.to(() => const CurrentJobPage());
+              Get.to(() => CurrentJobPage(uid: widget.riderId));
             },
           ),
         ),

@@ -8,7 +8,8 @@ import 'package:get/get.dart';
 import 'package:delivery/page/current_job_page.dart';
 
 class NewJobsPage extends StatefulWidget {
-  const NewJobsPage({super.key});
+  final String uid;
+  NewJobsPage({super.key, required this.uid});
 
   @override
   State<NewJobsPage> createState() => _NewJobsPageState();
@@ -25,9 +26,21 @@ class _NewJobsPageState extends State<NewJobsPage> {
   @override
   void initState() {
     super.initState();
-    // ดึงเฉพาะงานที่ยังไม่มีใครรับ (pending) และไม่ใช่ของตัวเอง (ถ้าต้องการ)
+
+    debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    debugPrint("🔍 กำลังสร้าง Query:");
+    debugPrint("   Collection: shipment");
+    debugPrint("   Where status in ['pending']");
+    debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+
+    //   _newJobsStream = FirebaseFirestore.instance
+    //       .collection('shipment') // 👈 ให้ตรงกับ Firestore ของคุณ
+    //       .where('status', isEqualTo: 'pending') // หรือปรับค่าให้ตรงใน Firestore
+    //       .snapshots();
+    // }
+
     _newJobsStream = FirebaseFirestore.instance
-        .collection('shipments')
+        .collection('shipment')
         .where('status', isEqualTo: 'pending')
         // .where('senderId', isNotEqualTo: _currentRiderId) // กัน Rider รับงานตัวเอง (ถ้าจำเป็น)
         .snapshots();
@@ -46,10 +59,7 @@ class _NewJobsPageState extends State<NewJobsPage> {
         title: const Text('ยืนยันการรับงาน'),
         content: const Text('คุณต้องการรับงานนี้ใช่หรือไม่?'),
         actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('ยกเลิก'),
-          ),
+          TextButton(onPressed: () => Get.back(), child: const Text('ยกเลิก')),
           ElevatedButton(
             onPressed: () async {
               Get.back(); // ปิด Dialog ก่อน
@@ -66,7 +76,7 @@ class _NewJobsPageState extends State<NewJobsPage> {
                 if (success) {
                   Get.snackbar("สำเร็จ", "รับงานเรียบร้อยแล้ว");
                   // ไปยังหน้า CurrentJob และลบหน้า NewJobs ออก
-                  Get.off(() => const CurrentJobPage());
+                  Get.off(() => CurrentJobPage(uid: widget.uid));
                 } else {
                   // RiderService ควร throw Exception ที่มี message บอกสาเหตุ
                   // Get.snackbar("เกิดข้อผิดพลาด", "ไม่สามารถรับงานได้ (อาจถูกรับไปแล้ว)");
@@ -124,11 +134,13 @@ class _NewJobsPageState extends State<NewJobsPage> {
 
               // (Backend) TODO: ดึงข้อมูลให้ครบถ้วน (อาจต้อง Query เพิ่มเติม)
               String packageId = doc.id;
-              String jobId = data['jobId'] ?? 'N/A'; // สมมติว่ามี Job ID
-              String itemDesc = data['packageDetails'] ?? 'N/A';
+              String jobId =
+                  data['receiverAddress'] ?? 'N/A'; // สมมติว่ามี Job ID
+              String itemDesc = data['details'] ?? 'N/A';
               String senderName = data['senderName'] ?? 'Sender N/A';
               String receiverName = data['receiverName'] ?? 'Receiver N/A';
-              double distance = data['distance'] ?? 0.0; // สมมติว่าคำนวณระยะทางมาแล้ว
+              double distance =
+                  data['distance'] ?? 0.0; // สมมติว่าคำนวณระยะทางมาแล้ว
 
               return _buildJobCard(
                 packageId: packageId,
@@ -152,7 +164,11 @@ class _NewJobsPageState extends State<NewJobsPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_none_rounded, size: 80, color: Colors.grey[400]),
+          Icon(
+            Icons.notifications_none_rounded,
+            size: 80,
+            color: Colors.grey[400],
+          ),
           const SizedBox(height: 16),
           Text(
             "ยังไม่มีงานใหม่", // <-- เปลี่ยนข้อความ
@@ -192,20 +208,37 @@ class _NewJobsPageState extends State<NewJobsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(packageId, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          Text("งาน #$jobId", style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+          Text(
+            packageId,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            "งาน #$jobId",
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          ),
           const SizedBox(height: 8),
-          _buildInfoRow(label: "สินค้า:", value: itemDescription, valueColor: primaryText),
+          _buildInfoRow(
+            label: "สินค้า:",
+            value: itemDescription,
+            valueColor: primaryText,
+          ),
           _buildInfoRow(label: "จาก:", value: sender, valueColor: primaryText),
           _buildInfoRow(label: "ไป:", value: receiver, valueColor: primaryText),
-          _buildInfoRow(label: "ระยะทาง:", value: "${distance.toStringAsFixed(1)} km", valueColor: primaryText),
+          _buildInfoRow(
+            label: "ระยะทาง:",
+            value: "${distance.toStringAsFixed(1)} km",
+            valueColor: primaryText,
+          ),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: onAccept,
               icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-              label: const Text("รับงาน", style: TextStyle(color: Colors.white, fontSize: 16)),
+              label: const Text(
+                "รับงาน",
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -221,13 +254,20 @@ class _NewJobsPageState extends State<NewJobsPage> {
   }
 
   // Helper Widget: แถวข้อความ
-  Widget _buildInfoRow({required String label, required String value, Color? valueColor}) {
-     return Padding(
+  Widget _buildInfoRow({
+    required String label,
+    required String value,
+    Color? valueColor,
+  }) {
+    return Padding(
       padding: const EdgeInsets.only(bottom: 2.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 15, color: Colors.black54)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 15, color: Colors.black54),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
