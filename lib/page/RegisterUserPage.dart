@@ -68,10 +68,8 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
 
       print('รูปภาพ: ${_image?.path}');
     }
-    
   }
 
- 
   @override
   Widget build(BuildContext context) {
     return Scaffold(

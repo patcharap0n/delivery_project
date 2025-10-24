@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery/page/RegisterRiderPage.dart';
 import 'package:delivery/page/RegisterUserPage.dart';
-import 'package:delivery/page/home_page.dart';
+import 'package:delivery/page/home_user_page.dart';
 import 'package:delivery/page/home_rider_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get_core/src/get_main.dart';
@@ -196,10 +196,16 @@ class _LoginPageState extends State<LoginPage> {
         Get.to(HomeUser());
       }
     } else if (riderquery.docs.isNotEmpty) {
-      var userData = riderquery.docs.first.data();
+      var riderDoc = riderquery.docs.first;
+      var userData = riderDoc.data();
+
+      // 4. สร้างตัวแปร 'riderId'
+      String riderId = riderDoc.id;
+
       String role = userData['Role'];
       if (role == "Rider") {
-        Get.to(HomeRider());
+        // 5. ส่ง 'riderId' เข้าไปใน constructor
+        Get.offAll(() => HomeRider(riderId: riderId));
       } else {
         Get.snackbar("Error", "Role ไม่ถูกต้อง");
       }
