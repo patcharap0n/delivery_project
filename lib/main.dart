@@ -5,6 +5,7 @@ import 'package:flutter/material.dart' as Get;
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

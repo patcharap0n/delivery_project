@@ -40,37 +40,39 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   }
 
   void register() {
-    if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('กำลังลงทะเบียน...')));
-      var db = FirebaseFirestore.instance;
-      var data = {
-        'First_name': _firstNameController.text,
-        'Last_name': _lastNameController.text,
-        'Phone': _phoneController.text,
-        'Password': _passwordController.text,
-        'addr': _addresses,
-        'Image': _image?.path,
-        'Role': widget.role,
-      };
-      db.collection('User').doc().set(data);
+    try {
+      if (_formKey.currentState!.validate()) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('กำลังลงทะเบียน...')));
+        var db = FirebaseFirestore.instance;
+        var data = {
+          'First_name': _firstNameController.text,
+          'Last_name': _lastNameController.text,
+          'Phone': _phoneController.text,
+          'Password': _passwordController.text,
+          'addr': _addresses,
+          'Image': _image?.path,
+          'Role': widget.role,
+        };
+        db.collection('User').doc().set(data);
 
-      // print แบบ readable
-      print('Role: ${widget.role}');
-      print('ชื่อ: ${_firstNameController.text}');
-      print('สกุล: ${_lastNameController.text}');
-      print('เบอร์: ${_phoneController.text}');
-      print('รหัสผ่าน: ${_passwordController.text}');
+        // print แบบ readable
+        print('Role: ${widget.role}');
+        print('ชื่อ: ${_firstNameController.text}');
+        print('สกุล: ${_lastNameController.text}');
+        print('เบอร์: ${_phoneController.text}');
+        print('รหัสผ่าน: ${_passwordController.text}');
 
-      print('ที่อยู่ทั้งหมด:');
-      for (var addr in _addresses) {
-        print('- $addr');
+        print('ที่อยู่ทั้งหมด:');
+        for (var addr in _addresses) {
+          print('- $addr');
+        }
+
+        print('รูปภาพ: ${_image?.path}');
+        Get.to(() => LoginPage());
       }
-
-      print('รูปภาพ: ${_image?.path}');
-      Get.to(LoginPage());
-    }
+    } catch (err) {}
   }
 
   @override
