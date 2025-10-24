@@ -201,10 +201,10 @@ class _LoginPageState extends State<LoginPage> {
       var userData = riderquery.docs.first.data();
       String role = userData['Role'];
       if (role == "Rider") {
-        var userDoc = riderquery.docs.first;
-        String uid = userDoc.id;
-        // Get.to(HomeRider()); // <--- Old way (Problematic)
-        Get.offAll(() => HomeRider(uid: uid)); // <--- Corrected this line too
+        var userId = riderquery.docs.first.id;
+        Get.offAll(
+          () => HomeRider(riderId: userId),
+        ); // <--- Corrected this line too
       } else {
         Get.snackbar("Error", "Role ไม่ถูกต้อง");
       }
