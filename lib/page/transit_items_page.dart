@@ -29,7 +29,7 @@ class _DummyPackageData {
 // --------------------------------------------------
 
 class TransitItemsPage extends StatefulWidget {
-  const TransitItemsPage({super.key});
+  const TransitItemsPage({super.key, required String uid});
 
   @override
   State<TransitItemsPage> createState() => _TransitItemsPageState();

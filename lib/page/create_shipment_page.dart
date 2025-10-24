@@ -207,6 +207,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
       // imageUrl = await taskSnapshot.ref.getDownloadURL();
 
       final shipmentData = {
+        'senderId': widget.uid,
         'senderPhone': _senderPhoneController.text.toString(),
         'senderAddress': _selectedSenderAddress,
         'receiverAddress': _receiverAddressController.text,
