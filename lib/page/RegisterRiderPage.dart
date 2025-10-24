@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
+// แพ็กเกจใหม่ที่ใช้ในการอัปโหลด
+import 'package:cloudinary_public/cloudinary_public.dart';
+
 class RegisterRiderPage extends StatefulWidget {
   final String role; // กำหนดเป็น 'Rider'
 
@@ -21,53 +24,128 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
   final TextEditingController _vehicleNumberController =
       TextEditingController();
 
-  File? _riderImage; // รูปผู้ขับ
-  File? _vehicleImage; // รูปยานพาหนะ
+  File? _tempRiderImageFile; // ไฟล์รูปชั่วคราวที่เลือกจากเครื่อง
+  File? _tempVehicleImageFile; // ไฟล์รูปชั่วคราวที่เลือกจากเครื่อง
+
+  // **ตัวแปรสำหรับเก็บ URL หลังจากอัปโหลดสำเร็จ**
+  String? _riderImageUrl;
+  String? _vehicleImageUrl;
 
   final ImagePicker _picker = ImagePicker();
 
-  // เลือกรูปภาพ
+  // **กำหนดค่า Cloudinary ที่นี่**
+  // ***เปลี่ยนค่า 'YOUR_CLOUD_NAME' และ 'YOUR_UNSIGNED_PRESET' ด้วยค่าจริงของคุณ***
+  final cloudinary = CloudinaryPublic(
+    'dpar6zwks', // <--- Cloud Name
+    'delivery', // <--- ชื่อ Upload Preset (ต้องเป็น Unsigned)
+    cache: false,
+  );
+
+  // ------------------------------------
+  // Helper function สำหรับเลือกและอัปโหลดรูป
+  // ------------------------------------
+  Future<String?> _uploadAndGetUrl(File? file, String folderName) async {
+    if (file == null) return null;
+
+    try {
+      CloudinaryResponse response = await cloudinary.uploadFile(
+        CloudinaryFile.fromFile(
+          file.path,
+          resourceType: CloudinaryResourceType.Image,
+          folder: folderName, // เช่น 'rider_images' หรือ 'vehicle_images'
+        ),
+      );
+      return response.secureUrl; // ส่ง URL กลับไป
+    } catch (e) {
+      // โชว์ error ให้ผู้ใช้เห็น
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('อัปโหลดรูปภาพ $folderName ล้มเหลว: $e')),
+      );
+      return null;
+    }
+  }
+
+  // เลือกรูปผู้ขับ
   Future<void> pickRiderImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
-        _riderImage = File(pickedFile.path);
+        _tempRiderImageFile = File(pickedFile.path);
       });
     }
   }
 
+  // เลือกรูปยานพาหนะ
   Future<void> pickVehicleImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
-        _vehicleImage = File(pickedFile.path);
+        _tempVehicleImageFile = File(pickedFile.path);
       });
     }
   }
 
-  void register() {
+  void register() async {
     if (_formKey.currentState!.validate()) {
+      // 1. ตรวจสอบว่ามีรูปภาพถูกเลือกหรือไม่
+      if (_tempRiderImageFile == null || _tempVehicleImageFile == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('กรุณาเลือกรูปผู้ขับและรูปยานพาหนะให้ครบ'),
+          ),
+        );
+        return;
+      }
+
+      // 2. อัปโหลดรูปภาพไปยัง Cloudinary
+      // (ควรแสดง Loading indicator ที่นี่ก่อนทำขั้นตอนต่อไป)
+
+      String? riderUrl = await _uploadAndGetUrl(
+        _tempRiderImageFile,
+        'rider_profile_images', // โฟลเดอร์บน Cloudinary
+      );
+
+      String? vehicleUrl = await _uploadAndGetUrl(
+        _tempVehicleImageFile,
+        'rider_vehicle_images', // โฟลเดอร์บน Cloudinary
+      );
+
+      // 3. ตรวจสอบการอัปโหลด
+      if (riderUrl == null || vehicleUrl == null) {
+        // หากอัปโหลดล้มเหลวอย่างใดอย่างหนึ่ง ให้หยุด
+        return;
+      }
+
+      // 4. บันทึก URL ที่ได้ลงในตัวแปร State
+      setState(() {
+        _riderImageUrl = riderUrl;
+        _vehicleImageUrl = vehicleUrl;
+      });
+
+      // 5. บันทึกข้อมูลลง Firestore (ใช้ URL แทน File)
       var db = FirebaseFirestore.instance;
       var data = {
         'Role': widget.role,
         'Name': _nameController.text,
         'Phone': _phoneController.text,
+        // ***ในแอปจริง ควรใช้ Firebase Auth สร้าง User และเก็บ UID
+        // ไม่ควรเก็บ Password ใน Firestore ตรงๆ***
         'Password': _passwordController.text,
         'VehicleNumber': _vehicleNumberController.text,
-        'RiderImage': _riderImage.toString(),
-        'VehicleImage': _vehicleImage.toString(),
+        'RiderImageUrl': _riderImageUrl, // ใช้ URL
+        'VehicleImageUrl': _vehicleImageUrl, // ใช้ URL
+        'Status': 'Pending', // สถานะเริ่มต้น
+        'createdAt': FieldValue.serverTimestamp(),
       };
-      db.collection('riders').doc().set(data);
-      // ข้อมูลพร้อมส่งไป backend / Firebase
-      print('Role: ${widget.role}'); // Rider
-      print('ชื่อ: ${_nameController.text}');
-      print('เบอร์: ${_phoneController.text}');
-      print('รหัสผ่าน: ${_passwordController.text}');
-      print('ทะเบียนรถ: ${_vehicleNumberController.text}');
-      print('รูปผู้ขับ: $_riderImage');
-      print('รูปยานพาหนะ: $_vehicleImage');
 
-      // TODO: ส่งข้อมูลไป Firebase Auth / Firestore / Storage
+      await db.collection('riders').doc().set(data);
+
+      // แสดงข้อความสำเร็จ
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ลงทะเบียน Rider สำเร็จแล้ว')),
+      );
+
+      // (TODO: นำทางผู้ใช้ไปยังหน้าถัดไป)
     }
   }
 
@@ -82,6 +160,7 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
             key: _formKey,
             child: Column(
               children: [
+                // ... (ส่วน TextFormField เหมือนเดิม) ...
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(labelText: 'ชื่อ'),
@@ -120,10 +199,11 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
                   icon: const Icon(Icons.person),
                   label: const Text('เลือกรูปผู้ขับ'),
                 ),
-                if (_riderImage != null)
+                // ***แสดงรูปจาก File ชั่วคราว***
+                if (_tempRiderImageFile != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Image.file(_riderImage!, height: 100),
+                    child: Image.file(_tempRiderImageFile!, height: 100),
                   ),
 
                 const SizedBox(height: 16),
@@ -134,10 +214,11 @@ class _RegisterRiderPageState extends State<RegisterRiderPage> {
                   icon: const Icon(Icons.directions_bike),
                   label: const Text('เลือกรูปยานพาหนะ'),
                 ),
-                if (_vehicleImage != null)
+                // ***แสดงรูปจาก File ชั่วคราว***
+                if (_tempVehicleImageFile != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Image.file(_vehicleImage!, height: 100),
+                    child: Image.file(_tempVehicleImageFile!, height: 100),
                   ),
 
                 const SizedBox(height: 24),
