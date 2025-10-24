@@ -56,11 +56,9 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
   }
 
   Future<void> _loadUserData() async {
-    // ... (ส่วนนี้เหมือนเดิมครับ) ...
     try {
       final db = FirebaseFirestore.instance;
       final userRef = db.collection('User');
-      // --- ดึงข้อมูลของผู้ส่ง (เจ้าของ uid นี้) ---
       final senderDoc = await userRef.doc(widget.uid).get();
       if (senderDoc.exists) {
         final senderData = senderDoc.data()!;
@@ -94,7 +92,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
       _receiverSavedAddresses = [];
       _receiverAddressController.clear();
       _receiverStateCountryController.clear();
-      _selectedAddressForMap = null; // --- ADDED --- เคลียร์แผนที่ที่เลือกไว้
+      _selectedAddressForMap = null;
     });
 
     try {
@@ -153,7 +151,6 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
 
   @override
   void dispose() {
-    // ... (ส่วนนี้เหมือนเดิมครับ) ...
     _senderPhoneController.dispose();
     _receiverPhoneController.dispose();
     _receiverAddressController.dispose();
@@ -166,7 +163,6 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
   }
 
   Future<void> _onUploadImage() async {
-    // ... (ส่วนนี้เหมือนเดิมครับ) ...
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
@@ -177,7 +173,6 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
   }
 
   Future<void> _onConfirmShipment() async {
-    // ... (ส่วนนี้เหมือนเดิมครับ) ...
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -194,22 +189,22 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
     });
 
     try {
-      String? imageUrl;
+      // String? imageUrl;
 
-      String fileExtension = path.extension(_image!.path);
-      String fileName =
-          '${DateTime.now().millisecondsSinceEpoch}$fileExtension';
+      // String fileExtension = path.extension(_image!.path);
+      // String fileName =
+      //     '${DateTime.now().millisecondsSinceEpoch}$fileExtension';
 
-      Reference storageRef = FirebaseStorage.instance
-          .ref()
-          .child('shipment_images')
-          .child(fileName);
+      // Reference storageRef = FirebaseStorage.instance
+      //     .ref()
+      //     .child('shipment_images')
+      //     .child(fileName);
 
-      UploadTask uploadTask = storageRef.putFile(_image!);
+      // UploadTask uploadTask = storageRef.putFile(_image!);
 
-      TaskSnapshot taskSnapshot = await uploadTask;
+      // TaskSnapshot taskSnapshot = await uploadTask;
 
-      imageUrl = await taskSnapshot.ref.getDownloadURL();
+      // imageUrl = await taskSnapshot.ref.getDownloadURL();
 
       final shipmentData = {
         'senderPhone': _senderPhoneController.text.toString(),
@@ -221,7 +216,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
         'details': _packageDetailsController.text.toString(),
         'notes': _packageNotesController.text.toString(),
         'timestamp': FieldValue.serverTimestamp(),
-        'imageUrl': imageUrl,
+        // 'imageUrl': imageUrl,
       };
       await FirebaseFirestore.instance.collection('shipment').add(shipmentData);
 
