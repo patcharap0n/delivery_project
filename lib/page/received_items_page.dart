@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart'; // (Backend)
-// import 'package:firebase_auth/firebase_auth.dart'; // (Backend)
+import 'package:cloud_firestore/cloud_firestore.dart'; // <-- 1. Import
+import 'package:firebase_auth/firebase_auth.dart'; // <-- 1. Import
 
-// (Backend) นี่คือข้อมูลจำลอง
-// คุณสามารถลบส่วนนี้ทิ้ง แล้วไปดึงข้อมูลจริงจาก Firestore
+// (Backend) นี่คือข้อมูลจำลอง (ใช้เป็น Data Model ชั่วคราว)
 class _DummyPackageData {
   final String packageId;
   final String itemDescription;
@@ -28,147 +27,178 @@ class _DummyPackageData {
 // --------------------------------------------------
 
 class ReceivedItemsPage extends StatefulWidget {
-  const ReceivedItemsPage({super.key});
+  final String uid;
+  ReceivedItemsPage({super.key, required this.uid});
 
   @override
   State<ReceivedItemsPage> createState() => _ReceivedItemsPageState();
 }
 
 class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
-  // (Backend) ตัวแปรสำหรับเก็บข้อมูลจริง
-  // List<Shipment> receivedItems = [];
-  bool isLoading = true;
+  // --- 2. ลบ isLoading และ _receivedItems ออกไป ---
 
-  // (Backend) ข้อมูลจำลอง (ลบทิ้งเมื่อเชื่อม Firebase)
-  final List<_DummyPackageData> _dummyData = [
-    _DummyPackageData(
-      packageId: 'Package #12345',
-      itemDescription: 'เอกสารด่วน',
-      senderName: 'นายสมชาย',
-      senderPhone: '081-xxx-xxxx',
-      address: '99/1 ถนน A เขต B',
-      status: '[3] ไรเดอร์รับสินค้าแล้วและกำลังเดินทางไปส่ง',
-      riderName: 'คุณชัย',
-      riderPhone: '089-xxx-xxxx',
-    ),
-    _DummyPackageData(
-      packageId: 'Package #12346',
-      itemDescription: 'กล่องพัสดุ',
-      senderName: 'นางสมหญิง',
-      senderPhone: '082-xxx-xxxx',
-      address: '100/2 ถนน C เขต D',
-      status: '[2] ไรเดอร์รับงาน (กำลังเดินทางมารับสินค้า)',
-      riderName: 'คุณชาติ',
-      riderPhone: '085-xxx-xxxx',
-    ),
-    _DummyPackageData(
-      packageId: 'Package #12347',
-      itemDescription: 'ซองจดหมาย',
-      senderName: 'นายสมศักดิ์',
-      senderPhone: '083-xxx-xxxx',
-      address: '101/3 ถนน E เขต F',
-      status: '[3] ไรเดอร์รับสินค้าแล้วและกำลังเดินทางไปส่ง',
-      riderName: 'คุณวิทย์',
-      riderPhone: '086-xxx-xxxx',
-    ),
-  ];
-  // --------------------------------------------------
+  // --- 3. สร้าง "ท่อ" (Stream) ---
+  late final Stream<QuerySnapshot> _itemsStream;
 
   @override
   void initState() {
     super.initState();
-    // (Backend) TODO: เรียกฟังก์ชันดึงข้อมูลจริงที่นี่
-    // _fetchReceivedItems();
-    
-    // (Backend) โค้ดสำหรับจำลองการโหลด (ลบทิ้งได้)
-    Future.delayed(const Duration(seconds: 1), () {
-      setState(() {
-        isLoading = false;
-      });
-    });
+    _loadUserData();
+    String? uid = FirebaseAuth.instance.currentUser?.uid;
+
+    if (uid != null) {
+      // 4. ให้ "ท่อ" นี้เชื่อมต่อกับ Firebase
+      _itemsStream = FirebaseFirestore.instance
+          .collection('shipments')
+          .where(
+            'receiverId',
+            isEqualTo: uid,
+          ) // <-- (จุดที่ต่าง) ค้นหาจาก receiverId
+          .where('status', whereIn: ['pending', 'accepted', 'inTransit'])
+          .snapshots(); // <-- .snapshots() เพื่อติดตามตลอด
+    } else {
+      _itemsStream = const Stream.empty();
+    }
   }
 
-  // (Backend) TODO: สร้างฟังก์ชันดึงข้อมูล
-  // Future<void> _fetchReceivedItems() async {
-  //   try {
-  //     String? uid = FirebaseAuth.instance.currentUser?.uid;
-  //     var snapshot = await FirebaseFirestore.instance
-  //         .collection('shipments')
-  //         .where('receiverId', isEqualTo: uid)
-  //         .where('status', whereIn: ['pending', 'accepted', 'inTransit'])
-  //         .get();
-  //     
-  //     // ... นำ snapshot ไปแปลงเป็น List<Shipment>
-  //
-  //     setState(() {
-  //       // receivedItems = ... (ข้อมูลที่ดึงได้)
-  //       isLoading = false;
-  //     });
-  //   } catch (e) {
-  //     setState(() => isLoading = false);
-  //     print("Error fetching items: $e");
-  //   }
-  // }
+  Future<void> _loadUserData() async {
+    try {
+      var db = FirebaseFirestore.instance;
+      var userRef = db.collection('User');
+
+      final userdata = await userRef.doc(widget.uid).get();
+
+      if (userdata.exists) {
+        final data = userdata.data();
+
+        final firstName = data?['First_name'] ?? 'User';
+        final lastName = data?['Last_name'] ?? '';
+
+        setState(() {});
+      }
+    } catch (e) {
+      debugPrint("❌ เกิดข้อผิดพลาดในการดึงข้อมูล User: $e");
+    }
+  }
+
+  // --- 5. ลบ _fetchReceivedItems() ทิ้งไป ---
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[200], // สีพื้นหลังเทาอ่อนๆ
+      backgroundColor: Colors.grey[200],
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "ของที่ได้รับ", // ในรูปเป็น "ของที่ได้รับ"
+          "ของที่ได้รับ", // <-- Title
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         elevation: 1,
         centerTitle: true,
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          // (Backend) เปลี่ยน _dummyData.length เป็น receivedItems.length
-          : ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              // (Backend) เปลี่ยน _dummyData.length เป็น receivedItems.length
-              itemCount: _dummyData.length,
-              itemBuilder: (context, index) {
-                // (Backend) ดึงข้อมูลจริงจาก
-                // final item = receivedItems[index];
-                
-                // (Backend) ดึงข้อมูลจำลอง (ลบส่วนนี้เมื่อเชื่อม Firebase)
-                final item = _dummyData[index];
-                
-                return _buildPackageCard(
-                  packageId: item.packageId,
-                  itemDescription: item.itemDescription,
-                  senderName: item.senderName,
-                  senderPhone: item.senderPhone,
-                  address: item.address,
-                  status: item.status,
-                  riderName: item.riderName,
-                  riderPhone: item.riderPhone,
-                );
-              },
-            ),
+
+      // --- 6. เปลี่ยน body เป็น StreamBuilder ---
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _itemsStream, // <-- ให้มันฟังจาก "ท่อ" ของเรา
+        builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+          // --- (Logic ที่ปลอดภัย แก้ Error `Null check` แล้ว) ---
+
+          // 1. (if) ตรวจสอบ Error ก่อน
+          if (snapshot.hasError) {
+            return const Center(child: Text('เกิดข้อผิดพลาดในการโหลดข้อมูล'));
+          }
+
+          // 2. (if) ตรวจสอบว่ากำลังโหลด
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          // 3. (if) (สำคัญ!) ตรวจสอบว่า "ไม่มีข้อมูล"
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return _buildEmptyState(); // <-- เรียกหน้าว่าง
+          }
+
+          // 4. (else) ถ้ามีข้อมูล...
+          return ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              var doc = snapshot.data!.docs[index];
+              var data = doc.data() as Map<String, dynamic>? ?? {};
+
+              // (Backend) TODO: ตรวจสอบชื่อ Field ให้ตรงกับ Firestore ของคุณ
+              final item = _DummyPackageData(
+                packageId: doc.id,
+                itemDescription: data['packageDetails'] ?? 'N/A',
+                senderName: data['senderName'] ?? 'N/A', // (ตัวอย่าง)
+                senderPhone: data['senderPhone'] ?? 'N/A', // (ตัวอย่าง)
+                address:
+                    (data['deliveryAddress']
+                        as Map<String, dynamic>?)?['fullAddress'] ??
+                    'N/A',
+                status: data['status'] ?? 'N/A',
+                riderName: data['riderName'] ?? 'N/A', // (ตัวอย่าง)
+                riderPhone: data['riderPhone'] ?? 'N/A', // (ตัวอย่าง)
+              );
+
+              return _buildPackageCard(
+                packageId: item.packageId,
+                itemDescription: item.itemDescription,
+                personLabel: "ผู้ส่ง:", // <-- (จุดที่ต่าง)
+                personName: item.senderName,
+                personPhone: item.senderPhone,
+                address: item.address,
+                status: item.status,
+                riderName: item.riderName,
+                riderPhone: item.riderPhone,
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
-  // --- Helper Widget: การ์ดแสดงข้อมูลพัสดุ ---
+  // --- Widget: แสดงหน้าว่าง (ดึงมาจาก EmptyStatePage) ---
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.notifications_none_rounded,
+            size: 80,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "คุณยังไม่มีรายการที่ได้รับ", // <-- (จุดที่ต่าง)
+            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- (Helper Widgets: _buildPackageCard และอื่นๆ เหมือนเดิม) ---
+
   Widget _buildPackageCard({
     required String packageId,
     required String itemDescription,
-    required String senderName,
-    required String senderPhone,
+    required String personLabel,
+    required String personName,
+    required String personPhone,
     required String address,
     required String status,
     required String riderName,
     required String riderPhone,
   }) {
-    const Color primaryText = Color(0xFF005FFF); // สีน้ำเงิน
-
+    // ... (โค้ดการ์ดเหมือนเดิม) ...
+    const Color primaryText = Color(0xFF005FFF);
     return Container(
       margin: const EdgeInsets.only(bottom: 16.0),
       padding: const EdgeInsets.all(16.0),
@@ -186,81 +216,61 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Package ID
           Text(
             packageId,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          
-          // รายละเอียด
           _buildInfoRow(
             label: "สินค้า:",
             value: itemDescription,
             valueColor: primaryText,
           ),
-          
-          // ผู้รับ (ในรูปคือผู้ส่ง)
           _buildInfoRowWithIcon(
-            label: "ผู้รับ:", // ในรูปเขียน "ผู้รับ"
-            value: senderName,
-            phone: senderPhone,
+            label: personLabel, // "ผู้ส่ง:"
+            value: personName,
+            phone: personPhone,
             valueColor: primaryText,
           ),
-
           _buildInfoRow(
             label: "ที่อยู่:",
             value: address,
             valueColor: primaryText,
           ),
-          
           _buildInfoRow(
             label: "สถานะ:",
             value: status,
-            valueColor: Colors.green.shade700, // สถานะสีเขียว
+            valueColor: Colors.green.shade700,
           ),
-
           _buildInfoRowWithIcon(
             label: "Rider:",
             value: riderName,
             phone: riderPhone,
             valueColor: primaryText,
           ),
-          
           const SizedBox(height: 16),
-          
-          // ปุ่มดูแผนที่
-          Align(
-            alignment: Alignment.centerLeft,
-            child: ElevatedButton(
-              onPressed: () {
-                // TODO: (Backend) ไปยังหน้าแผนที่
-                // โดยส่ง ID ของ Rider หรือ Shipment ไป
-                print("กดดูแผนที่ของ $packageId");
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey[200],
-                foregroundColor: Colors.black,
-                elevation: 0,
-              ),
-              child: const Text("ดูแผนที่"),
+          ElevatedButton(
+            onPressed: () {
+              print("กดดูแผนที่ของ $packageId");
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey[200],
+              foregroundColor: Colors.black,
+              elevation: 0,
             ),
+            child: const Text("ดูแผนที่"),
           ),
         ],
       ),
     );
   }
 
-  // Helper Widget: แถวข้อความธรรมดา
   Widget _buildInfoRow({
     required String label,
     required String value,
     Color? valueColor,
   }) {
+    // ... (โค้ด InfoRow เหมือนเดิม) ...
     return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
       child: Row(
@@ -286,13 +296,13 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
     );
   }
 
-  // Helper Widget: แถวข้อความที่มีไอคอนโทรศัพท์
   Widget _buildInfoRowWithIcon({
     required String label,
     required String value,
     required String phone,
     Color? valueColor,
   }) {
+    // ... (โค้ด InfoRowWithIcon เหมือนเดิม) ...
     return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
       child: Row(
@@ -315,7 +325,11 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Icon(Icons.phone_in_talk_rounded, color: Colors.green.shade600, size: 16),
+                Icon(
+                  Icons.phone_in_talk_rounded,
+                  color: Colors.green.shade600,
+                  size: 16,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   phone,
