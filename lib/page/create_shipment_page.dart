@@ -1,30 +1,30 @@
+import 'dart:developer';
+import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:path/path.dart' as path;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-// import 'dart:io'; // สำหรับเก็บไฟล์รูปภาพที่อัปโหลด
+import 'package:image_picker/image_picker.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class CreateShipmentPage extends StatefulWidget {
-  const CreateShipmentPage({super.key, required String uid});
+  final String uid;
+
+  const CreateShipmentPage({super.key, required this.uid});
 
   @override
   State<CreateShipmentPage> createState() => _CreateShipmentPageState();
 }
 
 class _CreateShipmentPageState extends State<CreateShipmentPage> {
-  // --- ตัวแปรและ State ทั้งหมดที่หน้านี้ต้องใช้ ---
-
   final _formKey = GlobalKey<FormState>();
 
-  // 1. รายละเอียดแหล่งกำเนิด (Sender)
   final TextEditingController _senderPhoneController = TextEditingController();
+  List<String> _senderSavedAddresses = [];
+  String? _selectedSenderAddress;
 
-  // (ตัวอย่างข้อมูลที่อยู่ User ที่ดึงมาจาก Firebase)
-  final List<String> _senderSavedAddresses = [
-    "num 1 00000000 (ที่อยู่บ้าน)",
-    "num 2 00000000 (ที่ทำงาน)",
-    "num 3 00000000 (คอนโด)",
-  ];
-  String? _selectedSenderAddress; // เก็บที่อยู่ที่ User เลือก
-
-  // 2. Destination Details (Receiver)
+  final TextEditingController _receiverPhoneController =
+      TextEditingController();
   final TextEditingController _receiverAddressController =
       TextEditingController();
   final TextEditingController _receiverStateCountryController =
@@ -32,41 +32,135 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
   final TextEditingController _receiverOtherController =
       TextEditingController();
 
-  // (ตัวอย่างข้อมูลที่อยู่ผู้รับที่อาจจะดึงมา หลังค้นหาด้วยเบอร์)
-  final List<String> _receiverSavedAddresses = [
-    "Address 1 00000000 State 000, Country 0000",
-    "Address 2 00000000 State 000, Country 0000",
-  ];
+  List<String> _receiverSavedAddresses = [];
 
-  // 3. รายละเอียดแพ็คเกจ (Package)
+  // --- ADDED ---
+  // ตัวแปรใหม่สำหรับเก็บ address string ("FullName \n lat,long") ของการ์ดที่ถูกเลือก
+  String? _selectedAddressForMap;
+  // --- END ADDED ---
+
   final TextEditingController _packageQuantityController =
       TextEditingController();
   final TextEditingController _packageDetailsController =
       TextEditingController();
   final TextEditingController _packageNotesController = TextEditingController();
 
-  // 4. สถานะการอัปโหลดรูป
-  // File? _packageImage; // ตัวแปรเก็บไฟล์รูปภาพ
   bool _isUploadFinished = false;
-
-  // --------------------------------------------------
+  bool _isSubmitting = false;
+  bool _isSearchingReceiver = false;
+  String? _foundReceiverId;
 
   @override
   void initState() {
     super.initState();
-    // (Backend) อาจจะดึงข้อมูลเบอร์โทร User มาใส่ช่องนี้อัตโนมัติ
-    // _senderPhoneController.text = "เบอร์ที่ล็อกอินอยู่";
+    _loadUserData();
+  }
 
-    // (Frontend) เลือกที่อยู่แรกเป็นค่าเริ่มต้น
-    if (_senderSavedAddresses.isNotEmpty) {
-      _selectedSenderAddress = _senderSavedAddresses.first;
+  Future<void> _loadUserData() async {
+    try {
+      final db = FirebaseFirestore.instance;
+      final userRef = db.collection('User');
+      final senderDoc = await userRef.doc(widget.uid).get();
+      if (senderDoc.exists) {
+        final senderData = senderDoc.data()!;
+        setState(() {
+          _senderPhoneController.text = senderData['Phone'] ?? '';
+          _senderSavedAddresses = List<String>.from(senderData['addr'] ?? []);
+          if (_senderSavedAddresses.isNotEmpty) {
+            _selectedSenderAddress = _senderSavedAddresses.first;
+          }
+        });
+      }
+    } catch (e) {}
+  }
+
+  Future<void> _searchReceiverByPhone() async {
+    final phone = _receiverPhoneController.text.trim();
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("กรุณาป้อนเบอร์โทรศัพท์เพื่อค้นหา")),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSearchingReceiver = true;
+      _receiverSavedAddresses = [];
+      _receiverAddressController.clear();
+      _receiverStateCountryController.clear();
+      _foundReceiverId = null; // 2. เคลียร์ ID ผู้รับเก่าทุกครั้งที่ค้นหา
+    });
+
+    try {
+      final db = FirebaseFirestore.instance;
+      final querySnapshot = await db
+          .collection('User')
+          .where('Phone', isEqualTo: phone)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("ไม่พบผู้ใช้จากเบอร์โทรนี้")),
+        );
+        setState(() {
+          _receiverSavedAddresses = [];
+        });
+      } else {
+        // --- 3. นี่คือจุดที่คุณต้องใส่โค้ด (โค้ดของคุณ) ---
+        final userDoc = querySnapshot.docs.first; // <-- เอา Doc
+        final userData = userDoc.data(); // <-- เอา Data
+
+        _foundReceiverId = userDoc.id; // <-- 4. เก็บ UID ของผู้รับ
+        // --- จบส่วนของโค้ดที่คุณส่งมา ---
+
+        final firstName = userData['First_name'] ?? '';
+        final lastName = userData['Last_name'] ?? '';
+        final fullName = "$firstName $lastName".trim();
+        final addresses = List<String>.from(userData['addr'] ?? []);
+
+        List<String> tempFoundAddresses = [];
+        if (addresses.isNotEmpty) {
+          for (var address in addresses) {
+            if (address.isNotEmpty) {
+              tempFoundAddresses.add("$fullName \n $address");
+            }
+          }
+        }
+
+        setState(() {
+          _receiverSavedAddresses = tempFoundAddresses;
+
+          // 5. (แนะนำ) กรอกข้อมูลช่องแรกให้เลย
+          _receiverAddressController.text = fullName; // "ชื่อผู้รับ"
+          _receiverStateCountryController.text = addresses.isNotEmpty
+              ? addresses.first
+              : ''; // "ที่อยู่"
+        });
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("✅ พบข้อมูลผู้รับ: $fullName")));
+      }
+    } catch (e) {
+      debugPrint("❌ ค้นหาผู้รับผิดพลาด: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("เกิดข้อผิดพลาดในการค้นหา")));
+    } finally {
+      setState(() {
+        _isSearchingReceiver = false;
+      });
     }
   }
 
+  final ImagePicker _picker = ImagePicker();
+  File? _image;
+
   @override
   void dispose() {
-    // คืนหน่วยความจำ Controller
     _senderPhoneController.dispose();
+    _receiverPhoneController.dispose();
     _receiverAddressController.dispose();
     _receiverStateCountryController.dispose();
     _receiverOtherController.dispose();
@@ -76,47 +170,90 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
     super.dispose();
   }
 
-  // --- ฟังก์ชันสำหรับกดปุ่ม ---
-
-  void _onUploadImage() {
-    // TODO: (Backend) เชื่อมต่อ Logic การเลือก/ถ่ายรูป
-    // และอัปโหลดไป Firebase Storage
-    print("กดอัปโหลดรูป");
-    // setState(() {
-    //   _packageImage = ... (ไฟล์ที่เลือก);
-    //   _isUploadFinished = true; // สมมติว่าอัปโหลดเสร็จ
-    // });
+  Future<void> _onUploadImage() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _image = File(pickedFile.path);
+        _isUploadFinished = true;
+      });
+    }
   }
 
-  void _onConfirmShipment() {
-    // TODO: (Backend) รวบรวมข้อมูลทั้งหมดจาก Controller
-    // และตัวแปร State เพื่อสร้าง Shipment ใน Firestore
-    if (_formKey.currentState!.validate()) {
-      print("--- ข้อมูลการส่ง ---");
-      print("เบอร์ผู้ส่ง: ${_senderPhoneController.text}");
-      print("ที่อยู่ผู้ส่ง: $_selectedSenderAddress");
-      print("ที่อยู่ผู้รับ: ${_receiverAddressController.text}");
-      print(
-        "รายละเอียดผู้รับ: ${_receiverStateCountryController.text}, ${_receiverOtherController.text}",
+  Future<void> _onConfirmShipment() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_image == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("กรุณาอัปโหลดรูปภาพพัสดุ")));
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      // String? imageUrl;
+
+      // String fileExtension = path.extension(_image!.path);
+      // String fileName =
+      //     '${DateTime.now().millisecondsSinceEpoch}$fileExtension';
+
+      // Reference storageRef = FirebaseStorage.instance
+      //     .ref()
+      //     .child('shipment_images')
+      //     .child(fileName);
+
+      // UploadTask uploadTask = storageRef.putFile(_image!);
+
+      // TaskSnapshot taskSnapshot = await uploadTask;
+
+      // imageUrl = await taskSnapshot.ref.getDownloadURL();
+
+      final shipmentData = {
+        'senderId': widget.uid,
+        'receiverId': _foundReceiverId,
+        'senderPhone': _senderPhoneController.text.toString(),
+        'senderAddress': _selectedSenderAddress,
+        'receiverAddress': _receiverAddressController.text,
+        'receiverStateCountry': _receiverStateCountryController.text,
+        'receiverOther': _receiverOtherController.text,
+        'quantity': _packageQuantityController.text,
+        'details': _packageDetailsController.text.toString(),
+        'notes': _packageNotesController.text.toString(),
+        'timestamp': FieldValue.serverTimestamp(),
+        'status': 'pending',
+        // 'imageUrl': imageUrl,
+      };
+      await FirebaseFirestore.instance.collection('shipment').add(shipmentData);
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("✅ ส่งข้อมูลสำเร็จ")));
+
+      Navigator.pop(context); // กลับหน้าเดิม
+    } catch (e) {
+      debugPrint("❌ เกิดข้อผิดพลาดในการบันทึกข้อมูล: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("เกิดข้อผิดพลาดในการส่งข้อมูล ")),
       );
-      print("จำนวน: ${_packageQuantityController.text} ชิ้น");
-      print("รายละเอียด: ${_packageDetailsController.text}");
-      print("หมายเหตุ: ${_packageNotesController.text}");
-      // print("รูปภาพ: ${_packageImage?.path}");
-
-      // ... ส่งข้อมูลไป Firebase ...
-
-      // กลับไปหน้า Home
-      Navigator.pop(context);
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // ... (ส่วนนี้เหมือนเดิมครับ) ...
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        // ลูกศรย้อนกลับ
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
@@ -137,34 +274,24 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- 1. ส่วนแหล่งกำเนิด ---
                 _buildSectionHeader(
                   Icons.location_history_rounded,
                   "รายละเอียดแหล่งกำเนิด",
                 ),
                 _buildSenderSection(),
-
                 const SizedBox(height: 24),
-
-                // --- 2. ส่วนปลายทาง ---
                 _buildSectionHeader(
                   Icons.location_on_outlined,
                   "Destination Details",
                 ),
                 _buildDestinationSection(),
-
                 const SizedBox(height: 24),
-
-                // --- 3. ส่วนแพ็คเกจ ---
                 _buildSectionHeader(
                   Icons.inventory_2_outlined,
                   "รายละเอียดแพ็คเกจ",
                 ),
                 _buildPackageSection(),
-
                 const SizedBox(height: 24),
-
-                // --- 4. ส่วนปุ่ม ---
                 _buildActionButtons(),
               ],
             ),
@@ -174,9 +301,10 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
     );
   }
 
-  // --- Helper Widgets (แบ่งโค้ดให้อ่านง่าย) ---
+  // ================= Helper Widgets =================
 
   Widget _buildSectionHeader(IconData icon, String title) {
+    // ... (ส่วนนี้เหมือนเดิมครับ) ...
     return Row(
       children: [
         Icon(icon, color: Colors.blue.shade700, size: 24),
@@ -190,6 +318,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
   }
 
   Widget _buildSenderSection() {
+    // ... (ส่วนนี้เหมือนเดิมครับ) ...
     return Padding(
       padding: const EdgeInsets.only(left: 32.0, top: 8.0),
       child: Column(
@@ -203,7 +332,11 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
                 (value == null || value.isEmpty) ? 'กรุณากรอกเบอร์โทร' : null,
           ),
           const SizedBox(height: 16),
-          // รายการที่อยู่ที่บันทึกไว้ (ของผู้ส่ง)
+          if (_senderSavedAddresses.isEmpty)
+            const Text(
+              "ไม่พบที่อยู่ในระบบ",
+              style: TextStyle(color: Colors.grey),
+            ),
           ..._senderSavedAddresses.map((address) {
             bool isSelected = (_selectedSenderAddress == address);
             return _buildAddressCard(
@@ -211,7 +344,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
               isSelected: isSelected,
               onTap: () {
                 setState(() {
-                  _selectedSenderAddress = address; // อัปเดตการเลือก
+                  _selectedSenderAddress = address;
                 });
               },
             );
@@ -222,29 +355,63 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
   }
 
   Widget _buildDestinationSection() {
+    // ... (ส่วนนี้เหมือนเดิมครับ) ...
     return Padding(
       padding: const EdgeInsets.only(left: 32.0, top: 8.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // (Backend) TODO: เพิ่มช่องค้นหาด้วยเบอร์โทร
+          TextFormField(
+            controller: _receiverPhoneController,
+            decoration: InputDecoration(
+              labelText: "ค้นหาผู้รับด้วยเบอร์โทร",
+              suffixIcon: _isSearchingReceiver
+                  ? const Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 3),
+                      ),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.search),
+                      onPressed: _searchReceiverByPhone,
+                    ),
+            ),
+            keyboardType: TextInputType.phone,
+          ),
+          const SizedBox(height: 16),
+
           TextFormField(
             controller: _receiverAddressController,
-            decoration: const InputDecoration(labelText: "ที่อยู่"),
+            decoration: const InputDecoration(labelText: "ชื่อผู้รับ"),
             validator: (value) =>
-                (value == null || value.isEmpty) ? 'กรุณากรอกที่อยู่' : null,
+                (value == null || value.isEmpty) ? 'กรุณากรอกชื่อผู้รับ' : null,
           ),
           TextFormField(
             controller: _receiverStateCountryController,
-            decoration: const InputDecoration(labelText: "รัฐ,ประเทศ"),
+            decoration: const InputDecoration(labelText: "ที่อยู่ (พิกัด)"),
             validator: (value) =>
-                (value == null || value.isEmpty) ? 'กรุณากรอกข้อมูล' : null,
+                (value == null || value.isEmpty) ? 'กรุณากรอกที่อยู่' : null,
           ),
           TextFormField(
             controller: _receiverOtherController,
             decoration: const InputDecoration(labelText: "คนอื่น (ไม่จำเป็น)"),
           ),
           const SizedBox(height: 16),
-          // รายการที่อยู่ที่บันทึกไว้ (ของผู้รับ)
+
+          if (_receiverSavedAddresses.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Text(
+                "ที่อยู่ที่บันทึกไว้ (แตะเพื่อเลือกและดูแผนที่):",
+                style: TextStyle(
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ..._receiverSavedAddresses.map((address) {
             return _buildSavedDestinationCard(address: address);
           }).toList(),
@@ -254,6 +421,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
   }
 
   Widget _buildPackageSection() {
+    // ... (ส่วนนี้เหมือนเดิมครับ) ...
     return Padding(
       padding: const EdgeInsets.only(left: 32.0, top: 8.0),
       child: Column(
@@ -281,13 +449,14 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
   }
 
   Widget _buildActionButtons() {
+    // ... (ส่วนนี้เหมือนเดิมครับ) ...
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             OutlinedButton.icon(
-              onPressed: _onUploadImage,
+              onPressed: _isSubmitting ? null : _onUploadImage,
               icon: const Icon(Icons.camera_alt_outlined),
               label: const Text("อัปโหลด"),
               style: OutlinedButton.styleFrom(
@@ -297,7 +466,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
             ),
             const SizedBox(width: 16),
             OutlinedButton(
-              onPressed: null, // (Frontend) ทำให้กดได้เมื่ออัปโหลดเสร็จ
+              onPressed: null,
               child: Text(
                 _isUploadFinished ? "อัปโหลดเสร็จสิ้น" : "ยังไม่อัปโหลด",
                 style: TextStyle(
@@ -311,7 +480,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: _onConfirmShipment,
+            onPressed: _isSubmitting ? null : _onConfirmShipment,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF005FFF),
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -319,17 +488,25 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
-              "ยืนยันส่งของ",
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
+            child: _isSubmitting
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                  )
+                : const Text(
+                    "ยืนยันส่งของ",
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
           ),
         ),
       ],
     );
   }
 
-  // การ์ดที่อยู่ (สำหรับผู้ส่ง)
   Widget _buildAddressCard({
     required String address,
     bool isSelected = false,
@@ -359,29 +536,146 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
     );
   }
 
-  // การ์ดที่อยู่ (สำหรับผู้รับ)
   Widget _buildSavedDestinationCard({required String address}) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8.0),
-      padding: const EdgeInsets.all(12.0),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8.0),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.add_circle_outline, color: Colors.blue.shade700),
-          const SizedBox(width: 8),
-          Expanded(child: Text(address)),
-          const SizedBox(width: 8),
-          const Text(
-            "เพิ่มจุดหมายปลายทาง",
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+    // ตรวจสอบว่าการ์ดใบนี้คือใบที่กำลังถูกเลือกอยู่หรือไม่
+    final bool isSelected = (_selectedAddressForMap == address);
+
+    // ฟังก์ชันสำหรับแปลง "lat, long" string เป็น LatLng
+    LatLng? parseLatLng(String addressString) {
+      final parts = addressString.split(" \n ");
+      if (parts.length == 2) {
+        final latLngString = parts[1];
+        final latLngParts = latLngString.split(',');
+        if (latLngParts.length == 2) {
+          final lat = double.tryParse(latLngParts[0].trim());
+          final lng = double.tryParse(latLngParts[1].trim());
+          if (lat != null && lng != null) {
+            return LatLng(lat, lng);
+          }
+        }
+      }
+      return null; // ถ้าแปลงไม่ได้
+    }
+
+    // ลองแปลงพิกัด
+    final LatLng? position = parseLatLng(address);
+
+    return Column(
+      // 1. ใช้ Column ครอบการ์ดและแผนที่
+      children: [
+        InkWell(
+          onTap: () {
+            // ถ้ากดการ์ดที่เลือกอยู่แล้ว = ปิดแผนที่
+            if (isSelected) {
+              setState(() {
+                _selectedAddressForMap = null;
+                _receiverAddressController.clear();
+                _receiverStateCountryController.clear();
+              });
+              return;
+            }
+
+            // ถ้าพิกัดถูกต้อง
+            if (position != null) {
+              final parts = address.split(" \n ");
+              final fullName = parts[0];
+              final latLngString = parts[1];
+
+              setState(() {
+                _receiverAddressController.text = fullName;
+                _receiverStateCountryController.text = latLngString;
+                _selectedAddressForMap =
+                    address; // ตั้งค่าการ์ดนี้ให้เป็น "ที่เลือก"
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("เลือกที่อยู่ผู้รับแล้ว ✅")),
+              );
+            } else {
+              // ถ้าพิกัดไม่ถูกต้อง (เช่น เป็นที่อยู่เก่าที่ไม่ได้เก็บเป็น lat,long)
+              debugPrint("Map: ที่อยู่ $address ไม่อยู่ในรูปแบบ lat,long");
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("ที่อยู่นี้ไม่มีพิกัดแผนที่")),
+              );
+            }
+          },
+          child: Container(
+            width: double.infinity,
+            margin: isSelected
+                ? const EdgeInsets.only(
+                    bottom: 0,
+                  ) // ถ้าถูกเลือก ไม่ต้องเว้นล่าง
+                : const EdgeInsets.only(
+                    bottom: 8.0,
+                  ), // ถ้าไม่ถูกเลือก เว้นล่างปกติ
+            padding: const EdgeInsets.all(12.0),
+            decoration: BoxDecoration(
+              color: isSelected ? Colors.blue.shade50 : Colors.grey.shade100,
+              border: Border.all(
+                color: isSelected ? Colors.blue.shade700 : Colors.grey.shade300,
+              ),
+              // --- MODIFIED --- (ปรับขอบมน)
+              borderRadius: isSelected
+                  ? const BorderRadius.only(
+                      // ถ้าถูกเลือก ให้มนแค่ข้างบน
+                      topLeft: Radius.circular(8.0),
+                      topRight: Radius.circular(8.0),
+                    )
+                  : BorderRadius.circular(8.0), // ถ้าไม่ถูกเลือก มนทั้งหมด
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.add_circle_outline, color: Colors.blue.shade700),
+                const SizedBox(width: 8),
+                Expanded(child: Text(address)),
+                const SizedBox(width: 8),
+                // --- ADDED --- (เพิ่มลูกศรชี้ขึ้น/ลง)
+                Icon(
+                  isSelected
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  color: Colors.grey.shade700,
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        ),
+
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          height: isSelected && position != null
+              ? 200
+              : 0, // ความสูง 200 เมื่อถูกเลือก (และมีพิกัด)
+          width: double.infinity,
+          margin: isSelected
+              ? const EdgeInsets.only(bottom: 8.0) // เว้นระยะขอบล่างเมื่อเปิด
+              : const EdgeInsets.only(bottom: 0),
+          child: (isSelected && position != null)
+              ? ClipRRect(
+                  // ตัดขอบมนด้านล่าง
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(8.0),
+                    bottomRight: Radius.circular(8.0),
+                  ),
+                  child: _buildInlineMap(position), // เรียกใช้แผนที่
+                )
+              : Container(), // ถ้าไม่เลือก/ไม่มีพิกัด ก็ไม่ต้องแสดงอะไร
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInlineMap(LatLng position) {
+    return GoogleMap(
+      initialCameraPosition: CameraPosition(target: position, zoom: 16.0),
+      markers: {
+        Marker(markerId: MarkerId(position.toString()), position: position),
+      },
+      mapType: MapType.normal,
+      myLocationButtonEnabled: false, // ปิดปุ่ม GPS
+      zoomControlsEnabled: false, // ปิดปุ่มซูม
+      scrollGesturesEnabled: false, // ปิดการเลื่อนแผนที่ (ถ้าต้องการ)
+      tiltGesturesEnabled: false, // ปิดการเอียง
     );
   }
 }
