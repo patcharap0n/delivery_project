@@ -1,3 +1,5 @@
+import 'package:delivery/page/received_items_page.dart';
+import 'package:delivery/page/transit_items_page.dart';
 import 'package:flutter/material.dart';
 // import 'package:firebase_auth/firebase_auth.dart'; // <-- 1. ลบ import นี้
 import 'package:get/get.dart';
@@ -146,32 +148,34 @@ class HomeUser extends StatelessWidget {
 
   // Helper Widget 2: ปุ่มเมนู 2 ปุ่ม
   Widget _buildNavigationButtons(BuildContext context, Color primaryColor) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildMenuButton(
-            context: context,
-            label: "ของที่กำลังส่ง",
-            primaryColor: primaryColor,
-            onPressed: () {
-              print("ไปหน้าของที่กำลังส่ง");
-            },
-          ),
+  return Row(
+    children: [
+      Expanded(
+        child: _buildMenuButton(
+          context: context,
+          label: "ของที่กำลังส่ง",
+          primaryColor: primaryColor,
+          onPressed: () {
+            // 2. เปลี่ยนไปหน้า TransitItemsPage
+            Get.to(() => const TransitItemsPage());
+          },
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildMenuButton(
-            context: context,
-            label: "ของที่ได้รับ",
-            primaryColor: primaryColor,
-            onPressed: () {
-              print("ไปหน้าของที่ได้รับ");
-            },
-          ),
+      ),
+      const SizedBox(width: 16),
+      Expanded(
+        child: _buildMenuButton(
+          context: context,
+          label: "ของที่ได้รับ",
+          primaryColor: primaryColor,
+          onPressed: () {
+            // 3. เปลี่ยนไปหน้า ReceivedItemsPage
+            Get.to(() => const ReceivedItemsPage());
+          },
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 
   // ปุ่มที่ใช้ซ้ำใน _buildNavigationButtons
   Widget _buildMenuButton({
