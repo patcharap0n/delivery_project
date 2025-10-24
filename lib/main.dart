@@ -17,7 +17,7 @@ void main() async {
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
 
-  @override
+  @override 
   Widget build(BuildContext context) {
     return GetMaterialApp(home: LoginPage());
   }

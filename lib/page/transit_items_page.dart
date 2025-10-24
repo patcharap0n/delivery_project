@@ -30,8 +30,7 @@ class _DummyPackageData {
 
 class TransitItemsPage extends StatefulWidget {
   final String uid;
-  final String phone;
-  TransitItemsPage({super.key, required this.uid, required this.phone});
+  TransitItemsPage({super.key, required this.uid});
 
   @override
   State<TransitItemsPage> createState() => _TransitItemsPageState();

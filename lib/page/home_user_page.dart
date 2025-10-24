@@ -8,8 +8,7 @@ import 'package:get/get_navigation/get_navigation.dart';
 
 class HomeUser extends StatefulWidget {
   final String uid;
-  final String phone;
-  const HomeUser({super.key, required this.uid, required this.phone});
+  const HomeUser({super.key, required this.uid});
 
   @override
   State<HomeUser> createState() => _HomeUserState();
@@ -177,7 +176,7 @@ class _HomeUserState extends State<HomeUser> {
             primaryColor: primaryColor,
             onPressed: () {
               Get.to(
-                () => TransitItemsPage(uid: widget.uid, phone: widget.phone),
+                () => TransitItemsPage(uid: widget.uid),
               );
             },
           ),
