@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery/page/RegisterRiderPage.dart';
 import 'package:delivery/page/RegisterUserPage.dart';
-import 'package:delivery/page/home_page.dart';
 import 'package:delivery/page/home_rider_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_navigation/get_navigation.dart';
+import 'package:delivery/page/home_user_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});

@@ -1,4 +1,6 @@
+import 'package:delivery/page/LoginPage.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class HomeRider extends StatelessWidget {
   // --- ตัวแปรสำหรับ Backend นำไปต่อยอด ---
@@ -16,6 +18,26 @@ class HomeRider extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
+
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text(
+          "หน้าหลัก",
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.black),
+            tooltip: 'กลับไปหน้า Login', // <-- เปลี่ยนข้อความ
+            onPressed: () {
+              // --- 3. ใส่คำสั่ง Get.offAll() ที่ปุ่ม onPressed โดยตรง ---
+              Get.offAll(() => const LoginPage());
+            },
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(

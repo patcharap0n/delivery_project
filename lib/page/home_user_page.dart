@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+// import 'package:firebase_auth/firebase_auth.dart'; // <-- 1. ลบ import นี้
+import 'package:get/get.dart';
+import 'package:delivery/page/LoginPage.dart'; // (เช็ค Path ให้ถูก)
 
 class HomeUser extends StatelessWidget {
   // --- คุณสามารถดึงข้อมูลจริงมาแทนที่ตรงนี้ ---
   final String userGreetingName = "User"; // จาก "สวัสดี User"
   final String userName = "tun tung tung"; // จากใน Banner
-  final String userImageUrl = 
+  final String userImageUrl =
       "https://static.wikia.nocookie.net/minecraft/images/f/fe/Villager_face.png/revision/latest"; // รูป Villager (ใช้ URL ชั่วคราว)
   // ------------------------------------
 
@@ -17,6 +20,27 @@ class HomeUser extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text(
+          "หน้าหลัก",
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.black),
+            tooltip: 'กลับไปหน้า Login', // <-- เปลี่ยนข้อความ
+            onPressed: () {
+              // --- 3. ใส่คำสั่ง Get.offAll() ที่ปุ่ม onPressed โดยตรง ---
+              Get.offAll(() => const LoginPage());
+            },
+          ),
+        ],
+      ),
+
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -25,8 +49,9 @@ class HomeUser extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 20),
+
+                // (เนื้อหา UI ส่วนที่เหลือเหมือนเดิม)
                 
-                // --- ส่วนทักทายด้านบน ---
                 Text(
                   "สวัสดี $userGreetingName",
                   style: const TextStyle(
@@ -45,18 +70,10 @@ class HomeUser extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
-
-                // --- Banner สีน้ำเงิน ---
                 _buildWelcomeBanner(primaryColor, userName, userImageUrl),
-                
                 const SizedBox(height: 20),
-
-                // --- ปุ่มเมนู 2 ปุ่ม ---
                 _buildNavigationButtons(context, primaryColor),
-
                 const SizedBox(height: 20),
-
-                // --- การ์ด "ส่งพัสดุ" ---
                 _buildCreateShipmentCard(context, primaryColor),
               ],
             ),
@@ -66,8 +83,16 @@ class HomeUser extends StatelessWidget {
     );
   }
 
+  // (Helper Widgets ทั้ง 3 ตัวเหมือนเดิม)
+  // ... _buildWelcomeBanner ...
+  // ... _buildNavigationButtons ...
+  // ... _buildMenuButton ...
+  // ... _buildCreateShipmentCard ...
+  
+  // (คัดลอก Helper Widgets 3 ตัวจากโค้ดก่อนหน้ามาวางที่นี่ได้เลยครับ)
   // Helper Widget 1: Banner สีน้ำเงิน
-  Widget _buildWelcomeBanner(Color primaryColor, String userName, String imageUrl) {
+  Widget _buildWelcomeBanner(
+      Color primaryColor, String userName, String imageUrl) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20.0),
@@ -112,9 +137,7 @@ class HomeUser extends StatelessWidget {
           CircleAvatar(
             radius: 32,
             backgroundColor: Colors.white,
-            // คุณสามารถเปลี่ยนเป็น AssetImage ถ้ามีรูปในโปรเจกต์
-            // หรือใช้ NetworkImage ถ้าดึง URL รูปมาจาก Firestore
-            backgroundImage: NetworkImage(imageUrl), 
+            backgroundImage: NetworkImage(imageUrl),
           ),
         ],
       ),
@@ -131,7 +154,6 @@ class HomeUser extends StatelessWidget {
             label: "ของที่กำลังส่ง",
             primaryColor: primaryColor,
             onPressed: () {
-              // TODO: ไปยังหน้า "ของที่กำลังส่ง"
               print("ไปหน้าของที่กำลังส่ง");
             },
           ),
@@ -143,7 +165,6 @@ class HomeUser extends StatelessWidget {
             label: "ของที่ได้รับ",
             primaryColor: primaryColor,
             onPressed: () {
-              // TODO: ไปยังหน้า "ของที่ได้รับ"
               print("ไปหน้าของที่ได้รับ");
             },
           ),
@@ -163,8 +184,8 @@ class HomeUser extends StatelessWidget {
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         backgroundColor: Colors.white,
-        foregroundColor: primaryColor, // สีตัวอักษร
-        side: BorderSide(color: Colors.grey[300]!), // สีขอบ
+        foregroundColor: primaryColor,
+        side: BorderSide(color: Colors.grey[300]!),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
         ),
@@ -184,7 +205,6 @@ class HomeUser extends StatelessWidget {
   Widget _buildCreateShipmentCard(BuildContext context, Color primaryColor) {
     return GestureDetector(
       onTap: () {
-        // TODO: ไปยังหน้า "สร้างรายการส่งของ"
         print("ไปหน้าส่งพัสดุ");
       },
       child: Container(
@@ -197,7 +217,7 @@ class HomeUser extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              Icons.archive_outlined, // Icon รูปกล่อง
+              Icons.archive_outlined,
               color: primaryColor,
               size: 44,
             ),
