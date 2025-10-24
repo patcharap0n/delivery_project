@@ -193,13 +193,15 @@ class _LoginPageState extends State<LoginPage> {
       var userData = userquery.docs.first.data();
       String role = userData['Role'];
       if (role == "User") {
-        Get.to(HomeUser());
+        // Get.to(HomeUser()); // <--- แบบเดิม (ผิด)
+        Get.offAll(() => const HomeUser()); // <--- แก้เป็นแบบนี้
       }
     } else if (riderquery.docs.isNotEmpty) {
       var userData = riderquery.docs.first.data();
       String role = userData['Role'];
       if (role == "Rider") {
-        Get.to(HomeRider());
+        // Get.to(HomeRider()); // <--- Old way (Problematic)
+        Get.offAll(() => const HomeRider()); // <--- Corrected this line too
       } else {
         Get.snackbar("Error", "Role ไม่ถูกต้อง");
       }
