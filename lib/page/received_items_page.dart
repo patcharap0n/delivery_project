@@ -27,7 +27,8 @@ class _DummyPackageData {
 // --------------------------------------------------
 
 class ReceivedItemsPage extends StatefulWidget {
-  const ReceivedItemsPage({super.key});
+  final String uid;
+  ReceivedItemsPage({super.key, required this.uid});
 
   @override
   State<ReceivedItemsPage> createState() => _ReceivedItemsPageState();
@@ -42,19 +43,41 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
   @override
   void initState() {
     super.initState();
-    
-    // (Backend) TODO: ดึง UID จริง
+    _loadUserData();
     String? uid = FirebaseAuth.instance.currentUser?.uid;
 
     if (uid != null) {
       // 4. ให้ "ท่อ" นี้เชื่อมต่อกับ Firebase
       _itemsStream = FirebaseFirestore.instance
           .collection('shipments')
-          .where('receiverId', isEqualTo: uid) // <-- (จุดที่ต่าง) ค้นหาจาก receiverId
+          .where(
+            'receiverId',
+            isEqualTo: uid,
+          ) // <-- (จุดที่ต่าง) ค้นหาจาก receiverId
           .where('status', whereIn: ['pending', 'accepted', 'inTransit'])
           .snapshots(); // <-- .snapshots() เพื่อติดตามตลอด
     } else {
-      _itemsStream = const Stream.empty(); 
+      _itemsStream = const Stream.empty();
+    }
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      var db = FirebaseFirestore.instance;
+      var userRef = db.collection('User');
+
+      final userdata = await userRef.doc(widget.uid).get();
+
+      if (userdata.exists) {
+        final data = userdata.data();
+
+        final firstName = data?['First_name'] ?? 'User';
+        final lastName = data?['Last_name'] ?? '';
+
+        setState(() {});
+      }
+    } catch (e) {
+      debugPrint("❌ เกิดข้อผิดพลาดในการดึงข้อมูล User: $e");
     }
   }
 
@@ -77,12 +100,11 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
         elevation: 1,
         centerTitle: true,
       ),
-      
+
       // --- 6. เปลี่ยน body เป็น StreamBuilder ---
       body: StreamBuilder<QuerySnapshot>(
         stream: _itemsStream, // <-- ให้มันฟังจาก "ท่อ" ของเรา
         builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
-          
           // --- (Logic ที่ปลอดภัย แก้ Error `Null check` แล้ว) ---
 
           // 1. (if) ตรวจสอบ Error ก่อน
@@ -105,7 +127,6 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
             padding: const EdgeInsets.all(16.0),
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
-              
               var doc = snapshot.data!.docs[index];
               var data = doc.data() as Map<String, dynamic>? ?? {};
 
@@ -115,7 +136,10 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
                 itemDescription: data['packageDetails'] ?? 'N/A',
                 senderName: data['senderName'] ?? 'N/A', // (ตัวอย่าง)
                 senderPhone: data['senderPhone'] ?? 'N/A', // (ตัวอย่าง)
-                address: (data['deliveryAddress'] as Map<String, dynamic>?)?['fullAddress'] ?? 'N/A',
+                address:
+                    (data['deliveryAddress']
+                        as Map<String, dynamic>?)?['fullAddress'] ??
+                    'N/A',
                 status: data['status'] ?? 'N/A',
                 riderName: data['riderName'] ?? 'N/A', // (ตัวอย่าง)
                 riderPhone: data['riderPhone'] ?? 'N/A', // (ตัวอย่าง)
@@ -153,10 +177,7 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
           const SizedBox(height: 16),
           Text(
             "คุณยังไม่มีรายการที่ได้รับ", // <-- (จุดที่ต่าง)
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
           ),
         ],
       ),
@@ -168,7 +189,7 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
   Widget _buildPackageCard({
     required String packageId,
     required String itemDescription,
-    required String personLabel, 
+    required String personLabel,
     required String personName,
     required String personPhone,
     required String address,
@@ -195,16 +216,27 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(packageId, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            packageId,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
-          _buildInfoRow(label: "สินค้า:", value: itemDescription, valueColor: primaryText),
+          _buildInfoRow(
+            label: "สินค้า:",
+            value: itemDescription,
+            valueColor: primaryText,
+          ),
           _buildInfoRowWithIcon(
             label: personLabel, // "ผู้ส่ง:"
             value: personName,
             phone: personPhone,
             valueColor: primaryText,
           ),
-          _buildInfoRow(label: "ที่อยู่:", value: address, valueColor: primaryText),
+          _buildInfoRow(
+            label: "ที่อยู่:",
+            value: address,
+            valueColor: primaryText,
+          ),
           _buildInfoRow(
             label: "สถานะ:",
             value: status,
@@ -233,14 +265,21 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
     );
   }
 
-  Widget _buildInfoRow({required String label, required String value, Color? valueColor}) {
+  Widget _buildInfoRow({
+    required String label,
+    required String value,
+    Color? valueColor,
+  }) {
     // ... (โค้ด InfoRow เหมือนเดิม) ...
-     return Padding(
+    return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 15, color: Colors.black54)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 15, color: Colors.black54),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -257,14 +296,22 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
     );
   }
 
-  Widget _buildInfoRowWithIcon({required String label, required String value, required String phone, Color? valueColor}) {
+  Widget _buildInfoRowWithIcon({
+    required String label,
+    required String value,
+    required String phone,
+    Color? valueColor,
+  }) {
     // ... (โค้ด InfoRowWithIcon เหมือนเดิม) ...
-     return Padding(
+    return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 15, color: Colors.black54)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 15, color: Colors.black54),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Row(
@@ -278,9 +325,16 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Icon(Icons.phone_in_talk_rounded, color: Colors.green.shade600, size: 16),
+                Icon(
+                  Icons.phone_in_talk_rounded,
+                  color: Colors.green.shade600,
+                  size: 16,
+                ),
                 const SizedBox(width: 4),
-                Text(phone, style: const TextStyle(fontSize: 15, color: Colors.black54)),
+                Text(
+                  phone,
+                  style: const TextStyle(fontSize: 15, color: Colors.black54),
+                ),
               ],
             ),
           ),

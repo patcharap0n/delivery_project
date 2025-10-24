@@ -1,19 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:delivery/page/edit_profile_page.dart';
+import 'package:delivery/page/create_shipment_page.dart';
 import 'package:delivery/page/received_items_page.dart';
+import 'package:delivery/page/tracking_page.dart';
 import 'package:delivery/page/transit_items_page.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:delivery/page/LoginPage.dart'; // (เช็ค Path ให้ถูก)
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_navigation/get_navigation.dart';
 
-// --- 1. เพิ่ม Import หน้า EditProfile ---
-// (คุณต้องไปสร้างไฟล์ 'package:delivery/page/edit_profile_page.dart' เองนะครับ)
-// import 'package:delivery/page/edit_profile_page.dart'; 
+class HomeUser extends StatefulWidget {
+  final String uid;
+  const HomeUser({super.key, required this.uid});
 
-class HomeUser extends StatelessWidget {
-  // --- คุณสามารถดึงข้อมูลจริงมาแทนที่ตรงนี้ ---
-  final String userGreetingName = "User"; // จาก "สวัสดี User"
-  final String userName = "tun tung tung"; // จากใน Banner
+  @override
+  State<HomeUser> createState() => _HomeUserState();
+}
+
+class _HomeUserState extends State<HomeUser> {
+  String userGreetingName = "User"; // ค่าเริ่มต้น
+  String userName = "User"; // ค่าเริ่มต้น
   final String userImageUrl =
       "https://static.wikia.nocookie.net/minecraft/images/f/fe/Villager_face.png/revision/latest"; // รูป Villager (ใช้ URL ชั่วคราว)
 
@@ -52,25 +56,6 @@ class HomeUser extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text(
-          "หน้าหลัก",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 1,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.black),
-            tooltip: 'กลับไปหน้า Login', // <-- เปลี่ยนข้อความ
-            onPressed: () {
-              // --- 3. ใส่คำสั่ง Get.offAll() ที่ปุ่ม onPressed โดยตรง ---
-              Get.offAll(() => const LoginPage());
-            },
-          ),
-        ],
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -80,8 +65,7 @@ class HomeUser extends StatelessWidget {
               children: [
                 const SizedBox(height: 20),
 
-                // (เนื้อหา UI ส่วนที่เหลือเหมือนเดิม)
-
+                // --- ส่วนทักทายด้านบน ---
                 Text(
                   "สวัสดี $userGreetingName",
                   style: const TextStyle(
@@ -97,10 +81,18 @@ class HomeUser extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
+
+                // --- Banner สีน้ำเงิน ---
                 _buildWelcomeBanner(primaryColor, userName, userImageUrl),
+
                 const SizedBox(height: 20),
+
+                // --- ปุ่มเมนู 2 ปุ่ม ---
                 _buildNavigationButtons(context, primaryColor),
+
                 const SizedBox(height: 20),
+
+                // --- การ์ด "ส่งพัสดุ" ---
                 _buildCreateShipmentCard(context, primaryColor),
               ],
             ),
@@ -110,9 +102,11 @@ class HomeUser extends StatelessWidget {
     );
   }
 
-  // Helper Widget 1: Banner สีน้ำเงิน
   Widget _buildWelcomeBanner(
-      Color primaryColor, String userName, String imageUrl) {
+    Color primaryColor,
+    String userName,
+    String imageUrl,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20.0),
@@ -151,21 +145,11 @@ class HomeUser extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-          
-          // --- 2. แก้ไขตรงนี้: หุ้ม CircleAvatar ด้วย GestureDetector ---
-          GestureDetector(
-            onTap: () {
-              // (Backend) TODO: สร้างหน้า EditProfilePage.dart
-              Get.to(() => const EditProfilePage()); 
-              print("ไปหน้า Edit Profile"); 
-            },
-            child: CircleAvatar(
-              radius: 32,
-              backgroundColor: Colors.white,
-              backgroundImage: NetworkImage(imageUrl),
-            ),
+          CircleAvatar(
+            radius: 32,
+            backgroundColor: Colors.white,
+            backgroundImage: NetworkImage(imageUrl),
           ),
-          // --- สิ้นสุดการแก้ไข ---
         ],
       ),
     );
@@ -181,8 +165,7 @@ class HomeUser extends StatelessWidget {
             label: "ของที่กำลังส่ง",
             primaryColor: primaryColor,
             onPressed: () {
-              // 2. เปลี่ยนไปหน้า TransitItemsPage
-              Get.to(() => const TransitItemsPage());
+              Get.to(() => ReceivedItemsPage(uid: widget.uid));
             },
           ),
         ),
@@ -193,8 +176,8 @@ class HomeUser extends StatelessWidget {
             label: "ของที่ได้รับ",
             primaryColor: primaryColor,
             onPressed: () {
-              // 3. เปลี่ยนไปหน้า ReceivedItemsPage
-              Get.to(() => const ReceivedItemsPage());
+              // TODO: ไปยังหน้า "ของที่ได้รับ"
+              print("ไปหน้าของที่ได้รับ");
             },
           ),
         ),
@@ -213,8 +196,8 @@ class HomeUser extends StatelessWidget {
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         backgroundColor: Colors.white,
-        foregroundColor: primaryColor,
-        side: BorderSide(color: Colors.grey[300]!),
+        foregroundColor: primaryColor, // สีตัวอักษร
+        side: BorderSide(color: Colors.grey[300]!), // สีขอบ
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12.0),
         ),
@@ -231,6 +214,8 @@ class HomeUser extends StatelessWidget {
   Widget _buildCreateShipmentCard(BuildContext context, Color primaryColor) {
     return GestureDetector(
       onTap: () {
+        // 12. แก้จาก this.uid เป็น widget.uid
+        Get.to(() => CreateShipmentPage(uid: widget.uid));
         print("ไปหน้าส่งพัสดุ");
       },
       child: Container(
@@ -243,7 +228,7 @@ class HomeUser extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              Icons.archive_outlined,
+              Icons.archive_outlined, // Icon รูปกล่อง
               color: primaryColor,
               size: 44,
             ),
