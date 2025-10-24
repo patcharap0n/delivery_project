@@ -1,9 +1,13 @@
+import 'package:delivery/page/edit_profile_page.dart';
 import 'package:delivery/page/received_items_page.dart';
 import 'package:delivery/page/transit_items_page.dart';
 import 'package:flutter/material.dart';
-// import 'package:firebase_auth/firebase_auth.dart'; // <-- 1. ลบ import นี้
 import 'package:get/get.dart';
 import 'package:delivery/page/LoginPage.dart'; // (เช็ค Path ให้ถูก)
+
+// --- 1. เพิ่ม Import หน้า EditProfile ---
+// (คุณต้องไปสร้างไฟล์ 'package:delivery/page/edit_profile_page.dart' เองนะครับ)
+// import 'package:delivery/page/edit_profile_page.dart'; 
 
 class HomeUser extends StatelessWidget {
   // --- คุณสามารถดึงข้อมูลจริงมาแทนที่ตรงนี้ ---
@@ -22,7 +26,6 @@ class HomeUser extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text(
@@ -42,7 +45,6 @@ class HomeUser extends StatelessWidget {
           ),
         ],
       ),
-
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -53,7 +55,7 @@ class HomeUser extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 // (เนื้อหา UI ส่วนที่เหลือเหมือนเดิม)
-                
+
                 Text(
                   "สวัสดี $userGreetingName",
                   style: const TextStyle(
@@ -85,13 +87,6 @@ class HomeUser extends StatelessWidget {
     );
   }
 
-  // (Helper Widgets ทั้ง 3 ตัวเหมือนเดิม)
-  // ... _buildWelcomeBanner ...
-  // ... _buildNavigationButtons ...
-  // ... _buildMenuButton ...
-  // ... _buildCreateShipmentCard ...
-  
-  // (คัดลอก Helper Widgets 3 ตัวจากโค้ดก่อนหน้ามาวางที่นี่ได้เลยครับ)
   // Helper Widget 1: Banner สีน้ำเงิน
   Widget _buildWelcomeBanner(
       Color primaryColor, String userName, String imageUrl) {
@@ -136,11 +131,21 @@ class HomeUser extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-          CircleAvatar(
-            radius: 32,
-            backgroundColor: Colors.white,
-            backgroundImage: NetworkImage(imageUrl),
+          
+          // --- 2. แก้ไขตรงนี้: หุ้ม CircleAvatar ด้วย GestureDetector ---
+          GestureDetector(
+            onTap: () {
+              // (Backend) TODO: สร้างหน้า EditProfilePage.dart
+              Get.to(() => const EditProfilePage()); 
+              print("ไปหน้า Edit Profile"); 
+            },
+            child: CircleAvatar(
+              radius: 32,
+              backgroundColor: Colors.white,
+              backgroundImage: NetworkImage(imageUrl),
+            ),
           ),
+          // --- สิ้นสุดการแก้ไข ---
         ],
       ),
     );
@@ -148,34 +153,34 @@ class HomeUser extends StatelessWidget {
 
   // Helper Widget 2: ปุ่มเมนู 2 ปุ่ม
   Widget _buildNavigationButtons(BuildContext context, Color primaryColor) {
-  return Row(
-    children: [
-      Expanded(
-        child: _buildMenuButton(
-          context: context,
-          label: "ของที่กำลังส่ง",
-          primaryColor: primaryColor,
-          onPressed: () {
-            // 2. เปลี่ยนไปหน้า TransitItemsPage
-            Get.to(() => const TransitItemsPage());
-          },
+    return Row(
+      children: [
+        Expanded(
+          child: _buildMenuButton(
+            context: context,
+            label: "ของที่กำลังส่ง",
+            primaryColor: primaryColor,
+            onPressed: () {
+              // 2. เปลี่ยนไปหน้า TransitItemsPage
+              Get.to(() => const TransitItemsPage());
+            },
+          ),
         ),
-      ),
-      const SizedBox(width: 16),
-      Expanded(
-        child: _buildMenuButton(
-          context: context,
-          label: "ของที่ได้รับ",
-          primaryColor: primaryColor,
-          onPressed: () {
-            // 3. เปลี่ยนไปหน้า ReceivedItemsPage
-            Get.to(() => const ReceivedItemsPage());
-          },
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildMenuButton(
+            context: context,
+            label: "ของที่ได้รับ",
+            primaryColor: primaryColor,
+            onPressed: () {
+              // 3. เปลี่ยนไปหน้า ReceivedItemsPage
+              Get.to(() => const ReceivedItemsPage());
+            },
+          ),
         ),
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 
   // ปุ่มที่ใช้ซ้ำใน _buildNavigationButtons
   Widget _buildMenuButton({
