@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as latlong2;
-
 import 'package:image_picker/image_picker.dart';
+
+// +++ 1. เพิ่ม Import +++
+import 'package:cloudinary_public/cloudinary_public.dart';
 
 class CreateShipmentPage extends StatefulWidget {
   final String uid;
@@ -17,12 +19,9 @@ class CreateShipmentPage extends StatefulWidget {
 }
 
 class _CreateShipmentPageState extends State<CreateShipmentPage> {
-  // (ตัวแปรส่วนใหญ่เหมือนเดิม)
+  final MapController _mapController = MapController();
   final _formKey = GlobalKey<FormState>();
   String _senderName = '';
-
-  // +++ 1. เพิ่ม MapController +++
-  final MapController _mapController = MapController();
 
   final TextEditingController _senderPhoneController = TextEditingController();
   List<String> _senderSavedAddresses = [];
@@ -47,11 +46,19 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
       TextEditingController();
   final TextEditingController _packageNotesController = TextEditingController();
 
+  final ImagePicker _picker = ImagePicker();
+
+  // +++ 2. แก้ไข/เพิ่ม ตัวแปรสำหรับรูปภาพ +++
   File? _pickedImage;
   bool _isUploadFinished = false;
   bool _isSubmitting = false;
+  bool _isUploadingImage = false;
+  String? _uploadedImageUrl;
 
-  final ImagePicker _picker = ImagePicker();
+  // +++ 2.1 ใส่ Config ของคุณที่นี่ +++
+  final String _cloudinaryCloudName = "dpar6zwks";
+  final String _cloudinaryUploadPreset = "delivery";
+  // +++++++++++++++++++++++++++++++++++++
 
   @override
   void initState() {
@@ -123,25 +130,78 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
     }
   }
 
+  // +++ 3. แก้ไข: _pickImageFromCamera (ให้อัปโหลดอัตโนมัติ) +++
   Future<void> _pickImageFromCamera() async {
-    // (โค้ดส่วนนี้เหมือนเดิม)
     final pickedFile = await _picker.pickImage(source: ImageSource.camera);
-    if (pickedFile != null) {
+    if (pickedFile == null) return; // ผู้ใช้กดยกเลิก
+
+    setState(() {
+      _pickedImage = File(pickedFile.path);
+      _isUploadFinished = false;
+      _uploadedImageUrl = null;
+      _isUploadingImage = true; // <-- เริ่มหมุนทันที
+    });
+
+    // เรียกอัปโหลดอัตโนมัติ
+    await _uploadImageToCloudinary();
+  }
+
+  // +++ 4. แก้ไข: _uploadImageToCloudinary (ลบ setSate ตอนเริ่ม) +++
+  Future<void> _uploadImageToCloudinary() async {
+    if (_pickedImage == null) {
+      setState(() => _isUploadingImage = false); // หยุดหมุนถ้ามีอะไรผิดพลาด
+      return;
+    }
+
+    // (ลบ setState(_isUploadingImage = true) จากตรงนี้ เพราะ _pickImage จัดการแล้ว)
+
+    try {
+      final cloudinary = CloudinaryPublic(
+        _cloudinaryCloudName,
+        _cloudinaryUploadPreset,
+        cache: false,
+      );
+
+      CloudinaryResponse response = await cloudinary.uploadFile(
+        CloudinaryFile.fromFile(
+          _pickedImage!.path,
+          resourceType: CloudinaryResourceType.Image,
+        ),
+      );
+
       setState(() {
-        _pickedImage = File(pickedFile.path);
+        _uploadedImageUrl = response.secureUrl;
         _isUploadFinished = true;
+        _isUploadingImage = false; // <-- หยุดหมุน (สำเร็จ)
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("✅ อัปโหลดรูปสำเร็จ"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _isUploadingImage = false; // <-- หยุดหมุน (ล้มเหลว)
+      });
+      debugPrint("❌ อัปโหลด Cloudinary ผิดพลาด: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("เกิดข้อผิดพลาดในการอัปโหลดรูป: $e")),
+      );
     }
   }
 
+  // +++ 5. _onConfirmShipment (เหมือนเดิม) +++
   Future<void> _onConfirmShipment() async {
-    // (โค้ดส่วนนี้เหมือนเดิม)
     if (!_formKey.currentState!.validate()) return;
 
-    if (_pickedImage == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("กรุณาอัปโหลดรูปภาพพัสดุ")));
+    if (_uploadedImageUrl == null || _uploadedImageUrl!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("กรุณาถ่ายรูป (และรออัปโหลด) ให้เสร็จก่อน"),
+        ),
+      );
       return;
     }
 
@@ -175,6 +235,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
         'notes': _packageNotesController.text,
         'timestamp': FieldValue.serverTimestamp(),
         'status': 'pending',
+        'imageUrl': _uploadedImageUrl, // <-- บันทึก URL
       };
 
       await FirebaseFirestore.instance.collection('shipment').add(shipmentData);
@@ -197,7 +258,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
   }
 
   latlong2.LatLng? _parseLatLng(String addressString) {
-    // (โค้ดส่วนนี้เหมือนเดิม)
+    // (ฟังก์ชันนี้เหมือนเดิม)
     final parts = addressString.split("\n");
     if (parts.length >= 2) {
       final addressPart = parts.sublist(1).join("\n").trim();
@@ -378,7 +439,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
                         ),
                       ),
 
-                      // +++ 2. แก้ไขส่วนแผนที่ +++
+                      // (ส่วนแผนที่ เหมือนเดิม)
                       if (isSelected && position != null)
                         SizedBox(
                           height: 200,
@@ -388,14 +449,9 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
                               bottomRight: Radius.circular(8),
                             ),
                             child: FlutterMap(
-                              // +++ 2.1 เพิ่ม Controller +++
                               mapController: _mapController,
                               options: MapOptions(
-                                // (ลบ center และ zoom จากตรงนี้)
-
-                                // +++ 2.2 เพิ่ม onMapReady +++
                                 onMapReady: () {
-                                  // สั่งให้แผนที่ขยับไปที่ 'position'
                                   _mapController.move(position, 16.0);
                                 },
                                 interactionOptions: const InteractionOptions(
@@ -427,14 +483,13 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
                                 ),
                               ],
                             ),
-                            // +++ สิ้นสุดส่วนที่แก้ไข +++
                           ),
                         ),
                     ],
                   );
                 }).toList(),
 
-                // (ส่วนรายละเอียดพัสดุและปุ่มยืนยัน เหมือนเดิม)
+                // (ส่วนรายละเอียดพัสดุ เหมือนเดิม)
                 const SizedBox(height: 24),
                 const Text(
                   "รายละเอียดพัสดุ",
@@ -466,36 +521,67 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
                 ),
                 const SizedBox(height: 16),
 
+                // +++ 6. แก้ไข: UI ปุ่ม (เหลือปุ่มเดียว) +++
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // 1. ปุ่มเดียว (ถ่ายรูป + แสดงสถานะ)
                     OutlinedButton.icon(
-                      onPressed: _isSubmitting ? null : _pickImageFromCamera,
-                      icon: const Icon(Icons.camera_alt_outlined),
-                      label: const Text("ถ่ายรูปพัสดุ"),
-                    ),
-                    const SizedBox(width: 16),
-                    OutlinedButton(
-                      onPressed: null,
-                      child: Text(
-                        _isUploadFinished
-                            ? "อัปโหลดเสร็จสิ้น"
-                            : "ยังไม่อัปโหลด",
+                      // ปิดปุ่มถ้า: กำลังส่งฟอร์ม หรือ กำลังอัปโหลดรูป
+                      onPressed: _isSubmitting || _isUploadingImage
+                          ? null
+                          : _pickImageFromCamera,
+
+                      icon: _isUploadingImage
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(
+                              _isUploadFinished
+                                  ? Icons
+                                        .check_circle // อัปเสร็จแล้ว
+                                  : Icons.camera_alt_outlined, // ยังไม่ได้อัป
+                            ),
+
+                      label: Text(
+                        _isUploadingImage
+                            ? "กำลังอัปโหลด..."
+                            : (_isUploadFinished
+                                  ? "อัปโหลดเสร็จสิ้น" // <-- ใช้คำที่คุณต้องการ
+                                  : "ถ่ายรูปพัสดุ"), // <-- ใช้คำที่คุณต้องการ
+                      ),
+
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _isUploadFinished
+                            ? Colors.green
+                            : null,
                       ),
                     ),
+
+                    // (ลบปุ่มที่ 2 ทิ้ง)
                   ],
                 ),
+
+                // +++ สิ้นสุดส่วนแก้ไข +++
                 const SizedBox(height: 16),
+
+                // (ส่วนแสดงรูปที่ถ่าย เหมือนเดิม)
                 if (_pickedImage != null)
-                  Container(
-                    width: 150,
-                    height: 150,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
+                  Center(
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                      ),
+                      child: Image.file(_pickedImage!, fit: BoxFit.cover),
                     ),
-                    child: Image.file(_pickedImage!, fit: BoxFit.cover),
                   ),
                 const SizedBox(height: 16),
+
+                // (ปุ่มยืนยัน เหมือนเดิม)
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -548,6 +634,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
     _packageQuantityController.dispose();
     _packageDetailsController.dispose();
     _packageNotesController.dispose();
+    _mapController.dispose();
     super.dispose();
   }
 }
