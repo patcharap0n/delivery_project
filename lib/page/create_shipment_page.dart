@@ -20,17 +20,23 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
   List<String> _senderSavedAddresses = [];
   String? _selectedSenderAddress;
 
-  final TextEditingController _receiverPhoneController = TextEditingController();
-  final TextEditingController _receiverAddressController = TextEditingController();
-  final TextEditingController _receiverStateCountryController = TextEditingController();
-  final TextEditingController _receiverOtherController = TextEditingController();
+  final TextEditingController _receiverPhoneController =
+      TextEditingController();
+  final TextEditingController _receiverAddressController =
+      TextEditingController();
+  final TextEditingController _receiverStateCountryController =
+      TextEditingController();
+  final TextEditingController _receiverOtherController =
+      TextEditingController();
   List<String> _receiverSavedAddresses = [];
   String? _foundReceiverId;
 
   String? _selectedAddressForMap;
 
-  final TextEditingController _packageQuantityController = TextEditingController();
-  final TextEditingController _packageDetailsController = TextEditingController();
+  final TextEditingController _packageQuantityController =
+      TextEditingController();
+  final TextEditingController _packageDetailsController =
+      TextEditingController();
   final TextEditingController _packageNotesController = TextEditingController();
 
   File? _pickedImage;
@@ -44,6 +50,7 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
   void initState() {
     super.initState();
     _loadUserData();
+    _loadAllReceivers();
   }
 
   Future<void> _loadUserData() async {
@@ -62,6 +69,37 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
       }
     } catch (e) {
       debugPrint("❌ Load sender error: $e");
+    }
+  }
+
+  Future<void> _loadAllReceivers() async {
+    try {
+      final db = FirebaseFirestore.instance;
+      final querySnapshot = await db.collection('User').get();
+
+      List<String> tempAllAddresses = [];
+
+      for (var doc in querySnapshot.docs) {
+        final userData = doc.data();
+        final firstName = userData['First_name'] ?? '';
+        final lastName = userData['Last_name'] ?? '';
+        final fullName = "$firstName $lastName".trim();
+        final addresses = List<String>.from(userData['addr'] ?? []);
+
+        for (var address in addresses) {
+          if (address.isNotEmpty) {
+            tempAllAddresses.add("$fullName\n$address");
+            _receiverAddressController.text = fullName;
+            _receiverStateCountryController.text = address;
+          }
+        }
+      }
+
+      setState(() {
+        _receiverSavedAddresses = tempAllAddresses;
+      });
+    } catch (e) {
+      debugPrint("❌ โหลดข้อมูลผู้รับทั้งหมดผิดพลาด: $e");
     }
   }
 
@@ -119,15 +157,15 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
           }
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("✅ พบข้อมูลผู้รับ: $fullName")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("✅ พบข้อมูลผู้รับ: $fullName")));
       }
     } catch (e) {
       debugPrint("❌ ค้นหาผู้รับผิดพลาด: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("เกิดข้อผิดพลาดในการค้นหา")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("เกิดข้อผิดพลาดในการค้นหา")));
     } finally {
       setState(() {
         _isSearchingReceiver = false;
@@ -149,9 +187,9 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_pickedImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("กรุณาอัปโหลดรูปภาพพัสดุ")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("กรุณาอัปโหลดรูปภาพพัสดุ")));
       return;
     }
 
@@ -177,9 +215,9 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
 
       await FirebaseFirestore.instance.collection('shipment').add(shipmentData);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ ส่งข้อมูลสำเร็จ")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("✅ ส่งข้อมูลสำเร็จ")));
 
       Navigator.pop(context);
     } catch (e) {
@@ -232,24 +270,36 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("รายละเอียดผู้ส่ง", style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  "รายละเอียดผู้ส่ง",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _senderPhoneController,
                   decoration: const InputDecoration(labelText: "เบอร์โทรศัพท์"),
                   keyboardType: TextInputType.phone,
-                  validator: (value) => (value == null || value.isEmpty) ? 'กรุณากรอกเบอร์โทร' : null,
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? 'กรุณากรอกเบอร์โทร'
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 ..._senderSavedAddresses.map((address) {
                   final isSelected = (_selectedSenderAddress == address);
-                  return _buildAddressCard(address: address, isSelected: isSelected, onTap: () {
-                    setState(() => _selectedSenderAddress = address);
-                  });
+                  return _buildAddressCard(
+                    address: address,
+                    isSelected: isSelected,
+                    onTap: () {
+                      setState(() => _selectedSenderAddress = address);
+                    },
+                  );
                 }).toList(),
                 const SizedBox(height: 24),
 
-                const Text("รายละเอียดผู้รับ", style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  "รายละเอียดผู้รับ",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _receiverPhoneController,
@@ -258,11 +308,29 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
                     suffixIcon: _isSearchingReceiver
                         ? const Padding(
                             padding: EdgeInsets.all(12),
-                            child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 3)),
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 3),
+                            ),
                           )
-                        : IconButton(
-                            icon: const Icon(Icons.search),
-                            onPressed: _searchReceiverByPhone,
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // 🔍 ปุ่มค้นหา
+                              IconButton(
+                                icon: const Icon(Icons.search),
+                                onPressed: _searchReceiverByPhone,
+                              ),
+                              // ❌ ปุ่มรีเซ็ต / ดูทั้งหมด
+                              IconButton(
+                                icon: const Icon(Icons.refresh),
+                                onPressed: () {
+                                  _receiverPhoneController.clear();
+                                  _loadAllReceivers(); // โหลดข้อมูลทั้งหมดกลับมาใหม่
+                                },
+                              ),
+                            ],
                           ),
                   ),
                   keyboardType: TextInputType.phone,
@@ -271,52 +339,91 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
                 TextFormField(
                   controller: _receiverAddressController,
                   decoration: const InputDecoration(labelText: "ชื่อผู้รับ"),
-                  validator: (value) => (value == null || value.isEmpty) ? 'กรุณากรอกชื่อผู้รับ' : null,
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? 'กรุณากรอกชื่อผู้รับ'
+                      : null,
                 ),
                 TextFormField(
                   controller: _receiverStateCountryController,
-                  decoration: const InputDecoration(labelText: "ที่อยู่ (พิกัด)"),
-                  validator: (value) => (value == null || value.isEmpty) ? 'กรุณากรอกที่อยู่' : null,
+                  decoration: const InputDecoration(
+                    labelText: "ที่อยู่ (พิกัด)",
+                  ),
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? 'กรุณากรอกที่อยู่'
+                      : null,
                 ),
                 TextFormField(
                   controller: _receiverOtherController,
-                  decoration: const InputDecoration(labelText: "คนอื่น (ไม่จำเป็น)"),
+                  decoration: const InputDecoration(
+                    labelText: "คนอื่น (ไม่จำเป็น)",
+                  ),
                 ),
                 const SizedBox(height: 8),
                 ..._receiverSavedAddresses.map((address) {
                   final isSelected = (_selectedAddressForMap == address);
                   final position = _parseLatLng(address);
+
                   return Column(
                     children: [
                       InkWell(
                         onTap: () {
-                          if (position != null) {
-                            setState(() {
-                              _selectedAddressForMap = isSelected ? null : address;
-                              _receiverAddressController.text = address.split(" \n ").first;
-                              _receiverStateCountryController.text = address.split(" \n ").last;
-                            });
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("ที่อยู่นี้ไม่มีพิกัดแผนที่")),
-                            );
-                          }
+                          setState(() {
+                            _selectedAddressForMap = isSelected
+                                ? null
+                                : address;
+
+                            // ✅ แยกชื่อกับที่อยู่
+                            final parts = address.split("\n");
+                            if (parts.length >= 2) {
+                              final fullName = parts[0].trim();
+                              final fullAddress = parts
+                                  .sublist(1)
+                                  .join("\n")
+                                  .trim();
+
+                              // ✅ ใส่ค่าลงช่องกรอกอัตโนมัติ
+                              _receiverAddressController.text = fullName;
+                              _receiverStateCountryController.text =
+                                  fullAddress;
+                            } else {
+                              _receiverAddressController.text = address;
+                              _receiverStateCountryController.text = "";
+                            }
+                          });
                         },
                         child: Container(
                           width: double.infinity,
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: isSelected ? Colors.blue.shade50 : Colors.grey.shade100,
-                            border: Border.all(color: isSelected ? Colors.blue.shade700 : Colors.grey.shade300),
+                            color: isSelected
+                                ? Colors.blue.shade50
+                                : Colors.grey.shade100,
+                            border: Border.all(
+                              color: isSelected
+                                  ? Colors.blue.shade700
+                                  : Colors.grey.shade300,
+                            ),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.add_circle_outline, color: Colors.blue.shade700),
+                              Icon(
+                                Icons.add_location_alt_outlined,
+                                color: Colors.blue.shade700,
+                              ),
                               const SizedBox(width: 8),
-                              Expanded(child: Text(address)),
-                              Icon(isSelected ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down),
+                              Expanded(
+                                child: Text(
+                                  address,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ),
+                              Icon(
+                                isSelected
+                                    ? Icons.keyboard_arrow_up
+                                    : Icons.keyboard_arrow_down,
+                              ),
                             ],
                           ),
                         ),
@@ -325,10 +432,21 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
                         SizedBox(
                           height: 200,
                           child: ClipRRect(
-                            borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(8),
+                              bottomRight: Radius.circular(8),
+                            ),
                             child: GoogleMap(
-                              initialCameraPosition: CameraPosition(target: position, zoom: 16),
-                              markers: {Marker(markerId: MarkerId(position.toString()), position: position)},
+                              initialCameraPosition: CameraPosition(
+                                target: position,
+                                zoom: 16,
+                              ),
+                              markers: {
+                                Marker(
+                                  markerId: MarkerId(position.toString()),
+                                  position: position,
+                                ),
+                              },
                               mapType: MapType.normal,
                               myLocationButtonEnabled: false,
                               zoomControlsEnabled: false,
@@ -342,22 +460,33 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
                 }).toList(),
 
                 const SizedBox(height: 24),
-                const Text("รายละเอียดพัสดุ", style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  "รายละเอียดพัสดุ",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _packageQuantityController,
                   decoration: const InputDecoration(labelText: "จำนวน __ ชิ้น"),
                   keyboardType: TextInputType.number,
-                  validator: (value) => (value == null || value.isEmpty) ? 'กรุณาระบุจำนวน' : null,
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? 'กรุณาระบุจำนวน'
+                      : null,
                 ),
                 TextFormField(
                   controller: _packageDetailsController,
-                  decoration: const InputDecoration(labelText: "รายละเอียดสินค้า:"),
-                  validator: (value) => (value == null || value.isEmpty) ? 'กรุณาระบุรายละเอียด' : null,
+                  decoration: const InputDecoration(
+                    labelText: "รายละเอียดสินค้า:",
+                  ),
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? 'กรุณาระบุรายละเอียด'
+                      : null,
                 ),
                 TextFormField(
                   controller: _packageNotesController,
-                  decoration: const InputDecoration(labelText: "หมายเหตุเพิ่มเติม:"),
+                  decoration: const InputDecoration(
+                    labelText: "หมายเหตุเพิ่มเติม:",
+                  ),
                 ),
                 const SizedBox(height: 16),
 
@@ -373,7 +502,11 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
                     const SizedBox(width: 16),
                     OutlinedButton(
                       onPressed: null,
-                      child: Text(_isUploadFinished ? "อัปโหลดเสร็จสิ้น" : "ยังไม่อัปโหลด"),
+                      child: Text(
+                        _isUploadFinished
+                            ? "อัปโหลดเสร็จสิ้น"
+                            : "ยังไม่อัปโหลด",
+                      ),
                     ),
                   ],
                 ),
@@ -382,7 +515,9 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
                   Container(
                     width: 150,
                     height: 150,
-                    decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                    ),
                     child: Image.file(_pickedImage!, fit: BoxFit.cover),
                   ),
                 const SizedBox(height: 16),
@@ -403,7 +538,11 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
     );
   }
 
-  Widget _buildAddressCard({required String address, bool isSelected = false, required VoidCallback onTap}) {
+  Widget _buildAddressCard({
+    required String address,
+    bool isSelected = false,
+    required VoidCallback onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -412,7 +551,9 @@ class _CreateShipmentPageState extends State<CreateShipmentPage> {
         padding: const EdgeInsets.all(12.0),
         decoration: BoxDecoration(
           color: isSelected ? Colors.blue.shade50 : Colors.grey.shade100,
-          border: Border.all(color: isSelected ? Colors.blue.shade700 : Colors.grey.shade300),
+          border: Border.all(
+            color: isSelected ? Colors.blue.shade700 : Colors.grey.shade300,
+          ),
           borderRadius: BorderRadius.circular(8.0),
         ),
         child: Text(address),
