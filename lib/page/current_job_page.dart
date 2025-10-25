@@ -29,7 +29,6 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
 
   late final Stream<QuerySnapshot> _jobsStream;
 
-  // ตำแหน่งเริ่มต้น
   final LatLng initialPosition = LatLng(16.246373, 103.251827);
 
   @override
@@ -39,7 +38,7 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
     _jobsStream = FirebaseFirestore.instance
         .collection('shipment')
         .where('riderId', isEqualTo: widget.uid)
-        .where('status', isEqualTo: 'accepted')
+        .where('status', whereIn: ['accepted', 'inTransit'])
         .snapshots();
 
     _listenRiderLocation();
@@ -69,6 +68,28 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
             }
           }
         });
+  }
+
+  Future<void> _updateJobStatus(String jobId, String newStatus) async {
+    try {
+      await FirebaseFirestore.instance.collection('shipment').doc(jobId).update(
+        {'status': newStatus, 'updatedAt': FieldValue.serverTimestamp()},
+      );
+
+      Get.snackbar(
+        "อัปเดตสำเร็จ",
+        "สถานะถูกเปลี่ยนเป็น $newStatus แล้ว",
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      Get.snackbar(
+        "เกิดข้อผิดพลาด",
+        e.toString(),
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
   }
 
   Future<void> _startUpdatingLocation() async {
@@ -109,7 +130,7 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
   }
 
   LatLng _parseLatLng(String s) {
-    if (s.isEmpty) return LatLng(16.246373, 103.251827); // default
+    if (s.isEmpty) return LatLng(16.246373, 103.251827);
     final parts = s.split(',');
     if (parts.length != 2) return LatLng(16.246373, 103.251827);
 
@@ -128,9 +149,15 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
         _pickedImage = File(file.path);
         _isUploading = true;
       });
-      await Future.delayed(const Duration(seconds: 2)); // จำลองการอัพโหลด
+
+      // จำลองการอัปโหลด
+      await Future.delayed(const Duration(seconds: 2));
+
       setState(() => _isUploading = false);
       Get.snackbar("สำเร็จ", "อัปโหลดรูปเรียบร้อย");
+
+      // เมื่ออัปโหลดเสร็จ → เปลี่ยนสถานะเป็น completed
+      await _updateJobStatus(jobId, "completed");
     }
   }
 
@@ -146,70 +173,46 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
           }
 
           final jobs = snapshot.data!.docs;
-
-          List<Marker> markers = [];
-          List<LatLng> allPositions = [];
-
-          for (var job in jobs) {
-            final data = job.data() as Map<String, dynamic>;
-            final senderAddress = data['senderAddress'] ?? '';
-            final receiverAddress = data['receiverStateCountry'] ?? '';
-
-            if (senderAddress.isNotEmpty) {
-              final senderLatLng = _parseLatLng(senderAddress);
-              markers.add(
-                Marker(
-                  point: LatLng(16.246373, 103.251827),
-                  width: 40,
-                  height: 40,
-                  child: Icon(Icons.location_on, color: Colors.green, size: 40),
-                ),
-              );
-              allPositions.add(senderLatLng);
-            }
-
-            if (receiverAddress.isNotEmpty) {
-              final receiverLatLng = _parseLatLng(receiverAddress);
-              markers.add(
-                Marker(
-                  point: receiverLatLng,
-                  width: 40,
-                  height: 40,
-                  child: const Icon(
-                    Icons.location_on,
-                    color: Colors.red,
-                    size: 40,
-                  ),
-                ),
-              );
-              allPositions.add(receiverLatLng);
-            }
-          }
-
-          // Rider marker
-          LatLng? riderPosition;
-          if (riderLat != null && riderLng != null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _mapController.move(LatLng(riderLat!, riderLng!), 15); // zoom 15
-            });
-          }
-
-          // Auto zoom to fit all markers
-          if (riderPosition != null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _mapController.move(riderPosition!, 15); // zoom 15
-            });
-          }
-
-          // UI job ตัวแรก
           final jobData = jobs[0].data() as Map<String, dynamic>;
           final jobId = jobs[0].id;
+
           final itemName = jobData['itemName'] ?? '-';
           final senderAddr = jobData['senderAddress'] ?? '-';
           final receiverAddr = jobData['receiverStateCountry'] ?? '-';
           final receiverName = jobData['receiverAddress'] ?? '-';
           final receiverPhone = jobData['receiverPhone'] ?? '-';
           final status = jobData['status'] ?? '-';
+
+          // Marker map
+          List<Marker> markers = [];
+          if (senderAddr.isNotEmpty) {
+            markers.add(
+              Marker(
+                point: _parseLatLng(senderAddr),
+                width: 40,
+                height: 40,
+                child: const Icon(
+                  Icons.location_on,
+                  color: Colors.green,
+                  size: 40,
+                ),
+              ),
+            );
+          }
+          if (receiverAddr.isNotEmpty) {
+            markers.add(
+              Marker(
+                point: _parseLatLng(receiverAddr),
+                width: 40,
+                height: 40,
+                child: const Icon(
+                  Icons.location_on,
+                  color: Colors.red,
+                  size: 40,
+                ),
+              ),
+            );
+          }
 
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (riderLat != null && riderLng != null) {
@@ -227,14 +230,14 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
                   options: MapOptions(
                     minZoom: 3,
                     maxZoom: 18,
-                    initialCenter: LatLng(16.246373, 103.251827),
+                    initialCenter: initialPosition,
                     initialZoom: 15,
                   ),
                   children: [
                     TileLayer(
                       urlTemplate:
                           "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                      userAgentPackageName: 'com.example.delivery', // ต้องใส่
+                      userAgentPackageName: 'com.example.delivery',
                     ),
                     MarkerLayer(markers: markers),
                   ],
@@ -265,125 +268,72 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text.rich(
-                      TextSpan(
-                        children: [
-                          const TextSpan(
-                            text: "สินค้า: ",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          TextSpan(text: itemName),
-                        ],
-                      ),
-                    ),
+                    Text("สินค้า: $itemName"),
                     const SizedBox(height: 4),
                     Text("ที่อยู่สินค้า: $senderAddr"),
                     const SizedBox(height: 4),
                     Text("ที่อยู่ปลายทาง: $receiverAddr"),
                     const SizedBox(height: 4),
-                    Text.rich(
-                      TextSpan(
-                        children: [
-                          const TextSpan(
-                            text: "ผู้รับ: ",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          TextSpan(
-                            text: "$receiverName ($receiverPhone)",
-                            style: const TextStyle(color: Color(0xFF005FFF)),
-                          ),
-                        ],
-                      ),
-                    ),
+                    Text("ผู้รับ: $receiverName ($receiverPhone)"),
                     const SizedBox(height: 8),
-                    Text.rich(
-                      TextSpan(
-                        children: [
-                          const TextSpan(
-                            text: "สถานะ: ",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          TextSpan(
-                            text: status,
-                            style: const TextStyle(color: Colors.red),
-                          ),
-                        ],
-                      ),
+                    Text(
+                      "สถานะ: $status",
+                      style: const TextStyle(color: Colors.red),
                     ),
                     const SizedBox(height: 16),
+
+                    // 🔽 ปุ่มเปลี่ยนตามสถานะ 🔽
                     Row(
                       children: [
-                        SizedBox(
-                          height: 36,
-                          child: ElevatedButton(
-                            onPressed: _isUploading
-                                ? null
-                                : () => _pickAndUpload(jobId),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue.shade700,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
+                        if (status == "accepted") ...[
+                          SizedBox(
+                            height: 36,
+                            child: ElevatedButton(
+                              onPressed: () =>
+                                  _updateJobStatus(jobId, "inTransit"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                side: const BorderSide(color: Colors.grey),
                               ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            child: const Text(
-                              "อัพโหลด",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
+                              child: const Text(
+                                "รับของแล้ว",
+                                style: TextStyle(color: Colors.black),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          height: 36,
-                          child: OutlinedButton(
-                            onPressed: null,
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Colors.grey.shade400),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
+                        ] else if (status == "inTransit") ...[
+                          SizedBox(
+                            height: 36,
+                            child: ElevatedButton(
+                              onPressed: _isUploading
+                                  ? null
+                                  : () async {
+                                      await _pickAndUpload(jobId);
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
                               ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            child: Text(
-                              "อัพโหลดเสร็จสิ้น",
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 14,
+                              child: const Text(
+                                "ส่งของเสร็จสิ้น",
+                                style: TextStyle(color: Colors.white),
                               ),
                             ),
                           ),
-                        ),
-                        const Spacer(),
-                        SizedBox(
-                          height: 36,
-                          child: ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              side: const BorderSide(color: Colors.grey),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
+                        ] else ...[
+                          SizedBox(
+                            height: 36,
+                            child: OutlinedButton(
+                              onPressed: null,
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Colors.grey.shade400),
                               ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            child: const Text(
-                              "รับของแล้ว",
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 14,
+                              child: Text(
+                                "เสร็จสิ้นแล้ว",
+                                style: TextStyle(color: Colors.grey.shade600),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ],
