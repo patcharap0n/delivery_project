@@ -47,7 +47,7 @@ class _NewJobsPageState extends State<NewJobsPage> {
 
                 // 1️⃣ อัปเดต shipment
                 var shipmentRef = FirebaseFirestore.instance
-                    .collection('shipments')
+                    .collection('shipment')
                     .doc(shipmentId);
                 batch.update(shipmentRef, {
                   'status': 'accepted',
