@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:delivery/page/current_job_page.dart';
+import 'package:latlong2/latlong.dart'
+    as latlong2; // +++ 1. เพิ่ม Import นี้ +++
 
 class NewJobsPage extends StatefulWidget {
   final String uid;
@@ -26,7 +28,7 @@ class _NewJobsPageState extends State<NewJobsPage> {
         .snapshots();
   }
 
-  // รับงานด้วย Transaction
+  // (ส่วน _acceptJob ของคุณเหมือนเดิม ไม่ได้แก้ไข)
   Future<void> _acceptJob(String shipmentId) async {
     Get.dialog(
       AlertDialog(
@@ -42,7 +44,7 @@ class _NewJobsPageState extends State<NewJobsPage> {
                 final db = FirebaseFirestore.instance;
                 final riderId = widget.uid;
 
-                // ✅ 1. ตรวจว่างานเก่าของ Rider ยังไม่เสร็จไหม (status != completed)
+                // ✅ 1. ตรวจว่างานเก่าของ Rider ยังไม่เสร็จไหม
                 final activeJobs = await db
                     .collection('shipment')
                     .where('riderId', isEqualTo: riderId)
@@ -109,11 +111,111 @@ class _NewJobsPageState extends State<NewJobsPage> {
     );
   }
 
+  // +++ 2. เพิ่มฟังก์ชัน _parseLatLng +++
+  // (ฟังก์ชันนี้ใช้แปลง "16.123, 103.456" ให้เป็นพิกัด)
+  latlong2.LatLng? _parseLatLng(String? latLngString) {
+    if (latLngString == null) return null;
+    final latLngParts = latLngString.split(',');
+    if (latLngParts.length == 2) {
+      final lat = double.tryParse(latLngParts[0].trim());
+      final lng = double.tryParse(latLngParts[1].trim());
+      if (lat != null && lng != null) {
+        return latlong2.LatLng(lat, lng);
+      }
+    }
+    return null;
+  }
+
+  // +++ 3. แก้ไขฟังก์ชัน getShipmentDetails +++
+  Future<Map<String, dynamic>> getShipmentDetails(
+    DocumentSnapshot shipmentDoc,
+  ) async {
+    var data = shipmentDoc.data() as Map<String, dynamic>;
+    final db = FirebaseFirestore.instance;
+
+    // 1. ดึงข้อมูลพื้นฐาน
+    String packageId = shipmentDoc.id;
+    String itemDesc = data['details'] ?? 'N/A';
+    String jobId = data['receiverAddress'] ?? 'N/A';
+
+    // 2. ดึงชื่อ (สำหรับงานใหม่)
+    String senderName = data['senderName'] ?? 'N/A';
+    String receiverName = data['receiverName'] ?? 'N/A';
+
+    // 3. ดึง ID (สำหรับงานเก่า)
+    String? senderId = data['senderId'];
+    String? receiverId = data['receiverId'];
+
+    // +++ 4. แก้ไขส่วนระยะทาง +++
+    double distance =
+        data['distance'] ?? 0.0; // 4.1 พยายามดึงระยะทางที่บันทึกไว้
+
+    if (distance == 0.0) {
+      // 4.2 ถ้าไม่มี (หรืองานเก่า) ให้คำนวณ
+      String? senderAddrStr = data['senderAddress'];
+      String? receiverAddrStr = data['receiverAddress'];
+
+      // ใช้ฟังก์ชัน _parseLatLng ที่เราเพิ่ม
+      final latlong2.LatLng? senderPos = _parseLatLng(senderAddrStr);
+      final latlong2.LatLng? receiverPos = _parseLatLng(receiverAddrStr);
+
+      if (senderPos != null && receiverPos != null) {
+        final latlong2.Distance distanceCalc = latlong2.Distance();
+        double distanceInMeters = distanceCalc(senderPos, receiverPos);
+        distance = distanceInMeters / 1000.0; // แปลงเป็นกิโลเมตร
+      }
+    }
+    // +++ จบส่วนแก้ไขระยะทาง +++
+
+    // 5. ค้นหาชื่อ (ถ้าจำเป็น) (โค้ดส่วนนี้เหมือนเดิม)
+    try {
+      if ((senderName == 'N/A' || senderName.isEmpty) && senderId != null) {
+        DocumentSnapshot senderDoc = await db
+            .collection('User')
+            .doc(senderId)
+            .get();
+        if (senderDoc.exists) {
+          var senderData = senderDoc.data() as Map<String, dynamic>;
+          final firstName = senderData['First_name'] ?? '';
+          final lastName = senderData['Last_name'] ?? '';
+          senderName = "$firstName $lastName".trim();
+        }
+      }
+
+      if ((receiverName == 'N/A' || receiverName.isEmpty) &&
+          receiverId != null) {
+        DocumentSnapshot receiverDoc = await db
+            .collection('User')
+            .doc(receiverId)
+            .get();
+        if (receiverDoc.exists) {
+          var receiverData = receiverDoc.data() as Map<String, dynamic>;
+          final firstName = receiverData['First_name'] ?? '';
+          final lastName = receiverData['Last_name'] ?? '';
+          receiverName = "$firstName $lastName".trim();
+        }
+      }
+    } catch (e) {
+      print("Error looking up names: $e");
+    }
+
+    // 6. คืนข้อมูล
+    return {
+      'packageId': packageId,
+      'itemDesc': itemDesc,
+      'jobId': jobId,
+      'senderName': senderName.isEmpty ? 'Sender N/A' : senderName,
+      'receiverName': receiverName.isEmpty ? 'Receiver N/A' : receiverName,
+      'distance': distance, // <-- คืนค่าระยะทางที่ถูกต้อง (ไม่เป็น 0.0 แล้ว)
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[200],
       appBar: AppBar(
+        // (ส่วน AppBar ของคุณเหมือนเดิม)
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Get.back(),
@@ -142,27 +244,64 @@ class _NewJobsPageState extends State<NewJobsPage> {
           return ListView.builder(
             padding: const EdgeInsets.all(16.0),
             itemCount: snapshot.data!.docs.length,
+            // +++ 4. แก้ไข itemBuilder ให้ใช้ FutureBuilder +++
             itemBuilder: (context, index) {
               var doc = snapshot.data!.docs[index];
-              var data = doc.data() as Map<String, dynamic>? ?? {};
+              // (ลบโค้ดที่ดึง data เดิมออก)
 
-              String packageId = doc.id;
-              String jobId = data['receiverAddress'] ?? 'N/A';
-              String itemDesc = data['details'] ?? 'N/A';
-              String senderName = data['senderName'] ?? 'Sender N/A';
-              String receiverName = data['receiverName'] ?? 'Receiver N/A';
-              double distance = data['distance'] ?? 0.0;
+              // ใช้ FutureBuilder เพื่อรอข้อมูลชื่อ และ ระยะทาง
+              return FutureBuilder<Map<String, dynamic>>(
+                future: getShipmentDetails(
+                  doc,
+                ), // <-- เรียกฟังก์ชันที่แก้ไขแล้ว
+                builder: (context, detailSnapshot) {
+                  // สถานะ: กำลังค้นหา...
+                  if (detailSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return _buildJobCard(
+                      packageId: doc.id,
+                      jobId: "กำลังโหลด...",
+                      itemDescription: "กำลังโหลด...",
+                      sender: "...",
+                      receiver: "...",
+                      distance: 0.0,
+                      onAccept: () {},
+                    );
+                  }
 
-              return _buildJobCard(
-                packageId: packageId,
-                jobId: jobId,
-                itemDescription: itemDesc,
-                sender: senderName,
-                receiver: receiverName,
-                distance: distance,
-                onAccept: () => _acceptJob(packageId),
+                  // สถานะ: ไม่สำเร็จ
+                  if (detailSnapshot.hasError) {
+                    return Card(
+                      color: Colors.red[100],
+                      margin: const EdgeInsets.only(bottom: 16.0),
+                      child: ListTile(
+                        title: Text("โหลดข้อมูลผิดพลาด: ${doc.id}"),
+                        subtitle: Text(detailSnapshot.error.toString()),
+                      ),
+                    );
+                  }
+
+                  // สถานะ: สำเร็จ
+                  if (detailSnapshot.hasData) {
+                    var details = detailSnapshot.data!;
+
+                    return _buildJobCard(
+                      packageId: details['packageId'],
+                      jobId: details['jobId'],
+                      itemDescription: details['itemDesc'],
+                      sender: details['senderName'],
+                      receiver: details['receiverName'],
+                      distance:
+                          details['distance'], // <-- แสดงระยะทางที่ถูกต้อง
+                      onAccept: () => _acceptJob(details['packageId']),
+                    );
+                  }
+
+                  return SizedBox.shrink();
+                },
               );
             },
+            // +++ สิ้นสุดส่วนที่แก้ไข +++
           );
         },
       ),
@@ -170,6 +309,7 @@ class _NewJobsPageState extends State<NewJobsPage> {
   }
 
   Widget _buildEmptyState() {
+    // (ส่วนนี้ของคุณเหมือนเดิม)
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -190,6 +330,7 @@ class _NewJobsPageState extends State<NewJobsPage> {
   }
 
   Widget _buildJobCard({
+    // (ส่วนนี้ของคุณเหมือนเดิม)
     required String packageId,
     required String jobId,
     required String itemDescription,
@@ -235,7 +376,8 @@ class _NewJobsPageState extends State<NewJobsPage> {
           _buildInfoRow(label: "ไป:", value: receiver, valueColor: primaryText),
           _buildInfoRow(
             label: "ระยะทาง:",
-            value: "${distance.toStringAsFixed(1)} km",
+            value:
+                "${distance.toStringAsFixed(1)} km", // <-- จะไม่เป็น 0.0 แล้ว
             valueColor: primaryText,
           ),
           const SizedBox(height: 16),
@@ -263,6 +405,7 @@ class _NewJobsPageState extends State<NewJobsPage> {
   }
 
   Widget _buildInfoRow({
+    // (ส่วนนี้ของคุณเหมือนเดิม)
     required String label,
     required String value,
     Color? valueColor,
