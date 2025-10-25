@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
-
-// (Backend) TODO: Import RiderService และ CurrentJobPage
-// import 'package:delivery/services/rider_service.dart';
 import 'package:delivery/page/current_job_page.dart';
 
 class NewJobsPage extends StatefulWidget {
@@ -16,44 +12,27 @@ class NewJobsPage extends StatefulWidget {
 }
 
 class _NewJobsPageState extends State<NewJobsPage> {
-  // (Backend) TODO: สร้าง Instance ของ RiderService
-  // final RiderService _riderService = RiderService();
-  final String? _currentRiderId = FirebaseAuth.instance.currentUser?.uid;
-
-  // --- Stream สำหรับดึงงานใหม่ ---
+  late final String _currentRiderId;
   late final Stream<QuerySnapshot> _newJobsStream;
 
   @override
   void initState() {
     super.initState();
-
-    debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    debugPrint("🔍 กำลังสร้าง Query:");
-    debugPrint("   Collection: shipment");
-    debugPrint("   Where status in ['pending']");
-    debugPrint("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-
-    //   _newJobsStream = FirebaseFirestore.instance
-    //       .collection('shipment') // 👈 ให้ตรงกับ Firestore ของคุณ
-    //       .where('status', isEqualTo: 'pending') // หรือปรับค่าให้ตรงใน Firestore
-    //       .snapshots();
-    // }
+    _currentRiderId = widget.uid;
 
     _newJobsStream = FirebaseFirestore.instance
         .collection('shipment')
         .where('status', isEqualTo: 'pending')
-        // .where('senderId', isNotEqualTo: _currentRiderId) // กัน Rider รับงานตัวเอง (ถ้าจำเป็น)
         .snapshots();
   }
 
-  // --- ฟังก์ชันรับงาน ---
+  // รับงานด้วย Transaction
   Future<void> _acceptJob(String shipmentId) async {
     if (_currentRiderId == null) {
       Get.snackbar("ข้อผิดพลาด", "ไม่พบข้อมูล Rider");
       return;
     }
 
-    // 1. แสดง Dialog ยืนยัน
     Get.dialog(
       AlertDialog(
         title: const Text('ยืนยันการรับงาน'),
@@ -62,27 +41,34 @@ class _NewJobsPageState extends State<NewJobsPage> {
           TextButton(onPressed: () => Get.back(), child: const Text('ยกเลิก')),
           ElevatedButton(
             onPressed: () async {
-              Get.back(); // ปิด Dialog ก่อน
-              // (Backend) TODO: แสดง Loading Indicator
-              // Get.dialog(Center(child: CircularProgressIndicator()));
-
+              Get.back(); // ปิด Dialog
               try {
-                // (Backend) TODO: เรียกใช้ Service เพื่อรับงาน (ใช้ Transaction)
-                // bool success = await _riderService.acceptJob(shipmentId, _currentRiderId!);
-                bool success = true; // --- <<<<<<<<<<<< (จำลองว่าสำเร็จ)
+                WriteBatch batch = FirebaseFirestore.instance.batch();
 
-                // Get.back(); // ปิด Loading
+                // 1️⃣ อัปเดต shipment
+                var shipmentRef = FirebaseFirestore.instance
+                    .collection('shipment')
+                    .doc(shipmentId);
+                batch.update(shipmentRef, {
+                  'status': 'accepted',
+                  'riderId': _currentRiderId,
+                  'acceptedAt': FieldValue.serverTimestamp(),
+                });
 
-                if (success) {
-                  Get.snackbar("สำเร็จ", "รับงานเรียบร้อยแล้ว");
-                  // ไปยังหน้า CurrentJob และลบหน้า NewJobs ออก
-                  Get.off(() => CurrentJobPage(uid: widget.uid));
-                } else {
-                  // RiderService ควร throw Exception ที่มี message บอกสาเหตุ
-                  // Get.snackbar("เกิดข้อผิดพลาด", "ไม่สามารถรับงานได้ (อาจถูกรับไปแล้ว)");
-                }
+                // 2️⃣ อัปเดต rider_locations
+                var riderRef = FirebaseFirestore.instance
+                    .collection('rider_locations')
+                    .doc(_currentRiderId);
+                batch.set(riderRef, {
+                  'currentJobId': shipmentId,
+                  'lastUpdated': FieldValue.serverTimestamp(),
+                }, SetOptions(merge: true));
+
+                await batch.commit();
+
+                Get.snackbar("สำเร็จ", "รับงานเรียบร้อยแล้ว");
+                Get.off(() => CurrentJobPage(uid: widget.uid));
               } catch (e) {
-                // Get.back(); // ปิด Loading
                 Get.snackbar("เกิดข้อผิดพลาด", e.toString());
               }
             },
@@ -121,10 +107,9 @@ class _NewJobsPageState extends State<NewJobsPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildEmptyState(); // แสดงหน้าว่าง
+            return _buildEmptyState();
           }
 
-          // แสดงรายการงาน
           return ListView.builder(
             padding: const EdgeInsets.all(16.0),
             itemCount: snapshot.data!.docs.length,
@@ -132,14 +117,12 @@ class _NewJobsPageState extends State<NewJobsPage> {
               var doc = snapshot.data!.docs[index];
               var data = doc.data() as Map<String, dynamic>? ?? {};
 
-              // (Backend) TODO: ดึงข้อมูลให้ครบถ้วน (อาจต้อง Query เพิ่มเติม)
               String packageId = doc.id;
-              String jobId = packageId ?? 'N/A'; // สมมติว่ามี Job ID
+              String jobId = data['receiverAddress'] ?? 'N/A';
               String itemDesc = data['details'] ?? 'N/A';
               String senderName = data['senderName'] ?? 'Sender N/A';
-              String receiverName = data['receiverAddress'] ?? 'Receiver N/A';
-              double distance =
-                  data['distance'] ?? 0.0; // สมมติว่าคำนวณระยะทางมาแล้ว
+              String receiverName = data['receiverName'] ?? 'Receiver N/A';
+              double distance = data['distance'] ?? 0.0;
 
               return _buildJobCard(
                 packageId: packageId,
@@ -157,7 +140,6 @@ class _NewJobsPageState extends State<NewJobsPage> {
     );
   }
 
-  // --- Widget: แสดงหน้าว่าง ---
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -170,7 +152,7 @@ class _NewJobsPageState extends State<NewJobsPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            "ยังไม่มีงานใหม่", // <-- เปลี่ยนข้อความ
+            "ยังไม่มีงานใหม่",
             style: TextStyle(fontSize: 18, color: Colors.grey[600]),
           ),
         ],
@@ -178,7 +160,6 @@ class _NewJobsPageState extends State<NewJobsPage> {
     );
   }
 
-  // --- Widget: การ์ดแสดงข้อมูลงาน ---
   Widget _buildJobCard({
     required String packageId,
     required String jobId,
@@ -188,7 +169,7 @@ class _NewJobsPageState extends State<NewJobsPage> {
     required double distance,
     required VoidCallback onAccept,
   }) {
-    const Color primaryText = Color(0xFF005FFF); // สีน้ำเงิน
+    const Color primaryText = Color(0xFF005FFF);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16.0),
@@ -252,7 +233,6 @@ class _NewJobsPageState extends State<NewJobsPage> {
     );
   }
 
-  // Helper Widget: แถวข้อความ
   Widget _buildInfoRow({
     required String label,
     required String value,
