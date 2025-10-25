@@ -89,6 +89,24 @@ class _HomeRiderState extends State<HomeRider> {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text(
+          "หน้าหลัก Rider", // <-- เปลี่ยน Title เล็กน้อย
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.black),
+            tooltip: 'กลับไปหน้า Login',
+            onPressed: () {
+              Get.offAll(() => const LoginPage());
+            },
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
