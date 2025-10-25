@@ -207,7 +207,7 @@ class _CurrentJobPageState extends State<CurrentJobPage> {
           final itemName = jobData['itemName'] ?? '-';
           final senderAddr = jobData['senderAddress'] ?? '-';
           final receiverAddr = jobData['receiverStateCountry'] ?? '-';
-          final receiverName = jobData['receiverName'] ?? '-';
+          final receiverName = jobData['receiverAddress'] ?? '-';
           final receiverPhone = jobData['receiverPhone'] ?? '-';
           final status = jobData['status'] ?? '-';
 
