@@ -28,11 +28,6 @@ class _NewJobsPageState extends State<NewJobsPage> {
 
   // รับงานด้วย Transaction
   Future<void> _acceptJob(String shipmentId) async {
-    if (_currentRiderId == null) {
-      Get.snackbar("ข้อผิดพลาด", "ไม่พบข้อมูล Rider");
-      return;
-    }
-
     Get.dialog(
       AlertDialog(
         title: const Text('ยืนยันการรับงาน'),
@@ -40,29 +35,64 @@ class _NewJobsPageState extends State<NewJobsPage> {
         actions: [
           TextButton(onPressed: () => Get.back(), child: const Text('ยกเลิก')),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             onPressed: () async {
-              Get.back(); // ปิด Dialog
+              Get.back(); // ปิด dialog
               try {
-                WriteBatch batch = FirebaseFirestore.instance.batch();
+                final db = FirebaseFirestore.instance;
+                final riderId = widget.uid;
 
-                // 1️⃣ อัปเดต shipment
-                var shipmentRef = FirebaseFirestore.instance
+                // ✅ 1. ตรวจว่างานเก่าของ Rider ยังไม่เสร็จไหม (status != completed)
+                final activeJobs = await db
                     .collection('shipment')
-                    .doc(shipmentId);
+                    .where('riderId', isEqualTo: riderId)
+                    .where('status', whereIn: ['accepted', 'inTransit'])
+                    .get();
+
+                if (activeJobs.docs.isNotEmpty) {
+                  Get.snackbar(
+                    "ไม่สามารถรับงานใหม่ได้",
+                    "กรุณาส่งงานเดิมให้เสร็จก่อนรับงานใหม่",
+                    backgroundColor: Colors.orange,
+                    colorText: Colors.white,
+                  );
+                  return;
+                }
+
+                // ✅ 2. ตรวจว่างานนี้ยังว่างอยู่หรือไม่
+                final shipmentRef = db.collection('shipment').doc(shipmentId);
+                final snapshot = await shipmentRef.get();
+                if (!snapshot.exists) {
+                  Get.snackbar("ข้อผิดพลาด", "ไม่พบน้ำงานนี้ในระบบ");
+                  return;
+                }
+
+                final data = snapshot.data()!;
+                if (data['status'] != 'pending') {
+                  Get.snackbar(
+                    "งานนี้ถูกจับไปแล้ว",
+                    "ไม่สามารถรับงานนี้ได้อีก",
+                  );
+                  return;
+                }
+
+                // ✅ 3. อัปเดตสถานะงานเป็น accepted
+                WriteBatch batch = db.batch();
+
                 batch.update(shipmentRef, {
                   'status': 'accepted',
-                  'riderId': _currentRiderId,
+                  'riderId': riderId,
                   'acceptedAt': FieldValue.serverTimestamp(),
                 });
 
-                // 2️⃣ อัปเดต rider_locations
-                var riderRef = FirebaseFirestore.instance
-                    .collection('rider_locations')
-                    .doc(_currentRiderId);
-                batch.set(riderRef, {
-                  'currentJobId': shipmentId,
-                  'lastUpdated': FieldValue.serverTimestamp(),
-                }, SetOptions(merge: true));
+                batch.set(
+                  db.collection('rider_locations').doc(riderId),
+                  {
+                    'currentJobId': shipmentId,
+                    'lastUpdated': FieldValue.serverTimestamp(),
+                  },
+                  SetOptions(merge: true),
+                );
 
                 await batch.commit();
 
@@ -72,7 +102,6 @@ class _NewJobsPageState extends State<NewJobsPage> {
                 Get.snackbar("เกิดข้อผิดพลาด", e.toString());
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             child: const Text('ยืนยัน', style: TextStyle(color: Colors.white)),
           ),
         ],
