@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer'; // สำหรับ debugPrint
 
 class ReceivedItemsPage extends StatefulWidget {
-  final String uid; // uid ของ "ผู้รับ" (ตัวเรา)
+  final String uid; // uid ของ "ผู้ส่ง" (ตัวเรา)
   ReceivedItemsPage({super.key, required this.uid});
 
   @override
@@ -17,10 +17,13 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
   void initState() {
     super.initState();
 
-    // Query หา shipment ที่ receiverId คือ uid ของเรา
+    // +++ Query หา shipment ที่ senderId คือ uid ของเรา +++
     _itemsStream = FirebaseFirestore.instance
         .collection('shipment')
-        .where('receiverId', isEqualTo: widget.uid) // <-- Query ที่ถูกต้อง
+        .where(
+          'senderId',
+          isEqualTo: widget.uid,
+        ) // <-- ค้นหาด้วย ID ผู้ส่ง (เรา)
         .where('status', whereIn: ['pending', 'inTransit', 'accepted'])
         .snapshots();
   }
@@ -31,56 +34,70 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
     debugPrint("RefreshIndicator triggered.");
   }
 
-  // --- ฟังก์ชัน Lookup (เหมือนเดิม) ---
-  Future<Map<String, dynamic>> getReceivedItemDetails(
+  // --- ฟังก์ชัน Lookup (ปรับปรุง Rider Lookup) ---
+  Future<Map<String, dynamic>> getSentItemDetails(
     DocumentSnapshot shipmentDoc,
   ) async {
     var data = shipmentDoc.data() as Map<String, dynamic>;
     final db = FirebaseFirestore.instance;
 
+    // 1. ดึงข้อมูลพื้นฐาน
     String packageId = shipmentDoc.id;
     String itemDesc = data['details'] ?? 'N/A';
     String status = data['status'] ?? 'N/A';
     String receiverLocation =
-        data['receiverAddress'] ?? data['receiverStateCountry'] ?? 'N/A';
+        data['receiverAddress'] ??
+        data['receiverStateCountry'] ??
+        'N/A'; // ที่อยู่ผู้รับ
+
+    // 2. ดึงชื่อ/เบอร์ ผู้ส่ง (คือเราเอง - อาจจะไม่ต้อง Lookup)
     String senderName = data['senderName'] ?? 'N/A';
     String senderPhone = data['senderPhone'] ?? 'N/A';
-    String? senderId = data['senderId'];
+
+    // 3. ดึงชื่อ/ID ผู้รับ (สำหรับ Lookup ชื่อ)
+    String receiverName = data['receiverName'] ?? 'N/A';
+    String? receiverId = data['receiverId'];
+
+    // 4. ดึง ID ไรเดอร์ (ถ้ามี)
     String? riderId = data['riderId'];
     String riderName = 'N/A';
     String riderPhone = 'N/A';
 
     try {
-      if ((senderName == 'N/A' || senderName.isEmpty) && senderId != null) {
-        DocumentSnapshot senderDoc = await db
+      // --- (ส่วน Lookup ผู้ส่ง อาจจะไม่จำเป็น ถ้า senderName/Phone ถูกต้องเสมอ) ---
+      // if ((senderName == 'N/A' || senderName.isEmpty) && senderId != null) { ... }
+
+      // 5. Lookup ชื่อผู้รับ (ถ้าดึงตรงๆ ไม่ได้ หรือต้องการข้อมูลล่าสุด)
+      if ((receiverName == 'N/A' || receiverName.isEmpty) &&
+          receiverId != null) {
+        // *** ตรวจสอบ Collection/Field ผู้รับ ('User'?) ***
+        DocumentSnapshot receiverDoc = await db
             .collection('User')
-            .doc(senderId)
+            .doc(receiverId)
             .get();
-        if (senderDoc.exists) {
-          var senderData = senderDoc.data() as Map<String, dynamic>;
-          final firstName = senderData['First_name'] ?? '';
-          final lastName = senderData['Last_name'] ?? '';
-          senderName = "$firstName $lastName".trim();
-          senderPhone = senderData['Phone'] ?? 'N/A';
+        if (receiverDoc.exists) {
+          var receiverData = receiverDoc.data() as Map<String, dynamic>;
+          // *** ตรวจสอบ Field ชื่อผู้รับ ('First_name', 'Last_name'?) ***
+          final firstName = receiverData['First_name'] ?? '';
+          final lastName = receiverData['Last_name'] ?? '';
+          receiverName = "$firstName $lastName".trim();
         }
       }
 
+      // 6. Lookup ไรเดอร์ (แก้ไขให้ตรง Database ไรเดอร์)
       if (riderId != null && riderId.isNotEmpty) {
-        // *** แก้ Collection/Field ไรเดอร์ ถ้าจำเป็น (เช่น 'riders') ***
+        // *** ใช้ Collection 'riders' ***
         DocumentSnapshot riderDoc = await db
             .collection('riders')
             .doc(riderId)
-            .get(); // <-- สมมติว่าแก้เป็น 'riders'
+            .get();
         if (riderDoc.exists) {
           var riderData = riderDoc.data() as Map<String, dynamic>;
-          // *** แก้ Field ชื่อ/เบอร์ ไรเดอร์ ถ้าจำเป็น ***
-          riderName =
-              riderData['Name'] ?? 'N/A'; // <-- สมมติว่า Field ชื่อคือ 'Name'
-          riderPhone =
-              riderData['Phone'] ??
-              'N/A'; // <-- สมมติว่า Field เบอร์คือ 'Phone'
+          // *** ใช้ Field 'Name' และ 'Phone' ***
+          riderName = riderData['Name'] ?? 'N/A';
+          riderPhone = riderData['Phone'] ?? 'N/A';
         } else {
-          riderName = 'ไรเดอร์ ไม่พบข้อมูล';
+          riderName = 'ไรเดอร์ ไม่พบข้อมูล'; // กรณีหา ID ไม่เจอ
           riderPhone = '';
         }
       }
@@ -88,12 +105,16 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
       print("Error looking up details: $e");
     }
 
+    // 7. คืนข้อมูลทั้งหมด
     return {
       'packageId': packageId,
       'itemDescription': itemDesc,
-      'senderName': senderName.isEmpty ? 'Sender N/A' : senderName,
-      'senderPhone': senderPhone.isEmpty ? 'N/A' : senderPhone,
-      'address': receiverLocation,
+      'senderName': senderName, // ชื่อเรา
+      'senderPhone': senderPhone, // เบอร์เรา
+      'receiverName': receiverName.isEmpty
+          ? 'Receiver N/A'
+          : receiverName, // ชื่อผู้รับ
+      'address': receiverLocation, // ที่อยู่ผู้รับ
       'status': status,
       'riderName': riderName,
       'riderPhone': riderPhone,
@@ -106,13 +127,13 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
     return Scaffold(
       backgroundColor: Colors.grey[200],
       appBar: AppBar(
-        // AppBar configuration (เหมือนเดิม)
+        // +++ Title: "ของที่กำลังส่ง" +++
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "ของที่กำลังส่ง", // Title ภาษาไทย
+          "ของที่กำลังส่ง", // <-- Title
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
@@ -123,105 +144,120 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
         onRefresh: _handleRefresh,
         child: StreamBuilder<QuerySnapshot>(
           stream: _itemsStream,
-          builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
-            if (snapshot.hasError) {
-              debugPrint("StreamBuilder Error: ${snapshot.error}");
-              return const Center(child: Text('เกิดข้อผิดพลาดในการโหลดข้อมูล'));
-            }
+          builder:
+              (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+                if (snapshot.hasError) {
+                  debugPrint("StreamBuilder Error: ${snapshot.error}");
+                  // อาจจะต้องเช็ค Error ประเภท Index ที่นี่ด้วย
+                  if (snapshot.error.toString().contains('index')) {
+                    return _buildEmptyState(
+                      "กำลังสร้าง Index...\nกรุณาลองรีเฟรชในภายหลัง",
+                    );
+                  }
+                  return const Center(
+                    child: Text('เกิดข้อผิดพลาดในการโหลดข้อมูล'),
+                  );
+                }
 
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              // แสดงหน้าว่างพร้อมข้อความภาษาไทย
-              return _buildEmptyState("คุณยังไม่มีพัสดุที่กำลังส่งมาถึง");
-            }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  // +++ ข้อความ Empty State: "ของที่กำลังส่ง" +++
+                  return _buildEmptyState("คุณยังไม่มีรายการที่กำลังส่ง");
+                }
 
-            // --- ใช้ ListView.builder กับ FutureBuilder (เหมือนเดิม)---
-            return ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              itemCount: snapshot.data!.docs.length,
-              itemBuilder: (context, index) {
-                var doc = snapshot.data!.docs[index];
+                // --- ใช้ ListView.builder กับ FutureBuilder (เหมือนเดิม)---
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16.0),
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    var doc = snapshot.data!.docs[index];
 
-                // ใช้ FutureBuilder รอผล Lookup
-                return FutureBuilder<Map<String, dynamic>>(
-                  future: getReceivedItemDetails(doc), // เรียกฟังก์ชัน Lookup
-                  builder: (context, detailSnapshot) {
-                    // สถานะ กำลังโหลด...
-                    if (detailSnapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return _buildPackageCard(
-                        packageId: doc.id,
-                        itemDescription: "กำลังโหลด...",
-                        personLabel: "ผู้ส่ง:",
-                        personName: "...",
-                        personPhone: "",
-                        address: "...",
-                        status: "...",
-                        riderName: "...", // แสดง ... แทนไรเดอร์
-                        riderPhone: "",
-                      );
-                    }
+                    // ใช้ FutureBuilder รอผล Lookup
+                    return FutureBuilder<Map<String, dynamic>>(
+                      future: getSentItemDetails(
+                        doc,
+                      ), // <-- เรียกฟังก์ชัน getSentItemDetails
+                      builder: (context, detailSnapshot) {
+                        // สถานะ กำลังโหลด...
+                        if (detailSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return _buildPackageCard(
+                            // แสดง Card แบบ Loading
+                            packageId: doc.id,
+                            itemDescription: "กำลังโหลด...",
+                            personLabel: "ผู้รับ:", // แก้ Label
+                            personName: "...",
+                            personPhone: "",
+                            address: "...",
+                            addressLabel: "ที่อยู่ส่ง:", // แก้ Label
+                            status: "...",
+                            riderName: "...",
+                            riderPhone: "",
+                          );
+                        }
 
-                    // สถานะ เกิด Error
-                    if (detailSnapshot.hasError) {
-                      return Card(
-                        color: Colors.red[100],
-                        margin: const EdgeInsets.only(bottom: 16.0),
-                        child: ListTile(
-                          title: Text("โหลดข้อมูลผิดพลาด: ${doc.id}"),
-                          subtitle: Text(detailSnapshot.error.toString()),
-                        ),
-                      );
-                    }
+                        // สถานะ เกิด Error
+                        if (detailSnapshot.hasError) {
+                          return Card(
+                            color: Colors.red[100],
+                            margin: const EdgeInsets.only(bottom: 16.0),
+                            child: ListTile(
+                              title: Text("โหลดรายละเอียดผิดพลาด: ${doc.id}"),
+                              subtitle: Text(detailSnapshot.error.toString()),
+                            ),
+                          );
+                        }
 
-                    // สถานะ สำเร็จ
-                    if (detailSnapshot.hasData) {
-                      var details = detailSnapshot.data!;
+                        // สถานะ สำเร็จ
+                        if (detailSnapshot.hasData) {
+                          var details = detailSnapshot.data!;
 
-                      return _buildPackageCard(
-                        packageId: details['packageId'],
-                        itemDescription: details['itemDescription'],
-                        personLabel: "ผู้ส่ง:", // Label คือ "ผู้ส่ง:"
-                        personName: details['senderName'], // ชื่อผู้ส่ง
-                        personPhone: details['senderPhone'], // เบอร์ผู้ส่ง
-                        address: details['address'], // ที่อยู่เรา
-                        status: details['status'],
-                        riderName:
-                            details['riderName'], // ชื่อไรเดอร์ (อาจเป็น N/A)
-                        riderPhone:
-                            details['riderPhone'], // เบอร์ไรเดอร์ (อาจเป็น N/A)
-                      );
-                    }
+                          // +++ ส่งข้อมูล "ผู้รับ" ไปแสดง +++
+                          return _buildPackageCard(
+                            packageId: details['packageId'],
+                            itemDescription: details['itemDescription'],
+                            personLabel: "ผู้รับ:", // <-- Label คือ "ผู้รับ:"
+                            personName:
+                                details['receiverName'], // <-- ชื่อผู้รับ
+                            personPhone:
+                                "", // <-- (เบอร์ผู้รับ ปกติไม่มีใน shipment)
+                            address: details['address'], // <-- ที่อยู่ผู้รับ
+                            addressLabel: "ที่อยู่ส่ง:", // <-- Label ที่อยู่
+                            status: details['status'],
+                            riderName: details['riderName'],
+                            riderPhone: details['riderPhone'],
+                          );
+                        }
 
-                    return SizedBox.shrink(); // กรณีอื่นๆ
+                        return SizedBox.shrink(); // กรณีอื่นๆ
+                      },
+                    );
                   },
                 );
+                // --- สิ้นสุด ListView.builder ---
               },
-            );
-            // --- สิ้นสุด ListView.builder ---
-          },
         ),
       ),
     );
   }
 
-  // --- Widget หน้าว่าง (เหมือนเดิม) ---
+  // --- Widget หน้าว่าง (แก้ Icon) ---
   Widget _buildEmptyState(String message) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.local_shipping_outlined, // Icon รถส่งของ
+            Icons.outbox_rounded, // <-- Icon กล่องส่งออก
             size: 80,
             color: Colors.grey[400],
           ),
           const SizedBox(height: 16),
           Text(
-            message, // ใช้ข้อความที่ส่งเข้ามา
+            message,
             style: TextStyle(fontSize: 18, color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
@@ -230,17 +266,18 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
     );
   }
 
-  // --- Widget การ์ดแสดงพัสดุ (เหมือนเดิม) ---
+  // +++ Widget การ์ดแสดงพัสดุ (แก้ Parameter) +++
   Widget _buildPackageCard({
     required String packageId,
     required String itemDescription,
-    required String personLabel, // ควรเป็น "ผู้ส่ง:"
+    required String personLabel, // ควรเป็น "ผู้รับ:"
     required String personName,
-    required String personPhone,
-    required String address, // ที่อยู่เรา
+    required String personPhone, // (อาจจะว่าง)
+    required String address, // ที่อยู่ผู้รับ
+    required String addressLabel, // ควรเป็น "ที่อยู่ส่ง:"
     required String status,
-    required String riderName, // อาจเป็น N/A
-    required String riderPhone, // อาจเป็น N/A
+    required String riderName,
+    required String riderPhone,
   }) {
     const Color primaryText = Color(0xFF005FFF);
     return Container(
@@ -266,44 +303,37 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
           ),
           const SizedBox(height: 12),
           _buildInfoRow(
-            // รายละเอียดสินค้า
             label: "สินค้า:",
             value: itemDescription,
             valueColor: primaryText,
           ),
           _buildInfoRowWithIcon(
-            // ข้อมูลผู้ส่ง
-            label: personLabel, // "ผู้ส่ง:"
+            // ข้อมูลผู้รับ
+            label: personLabel, // "ผู้รับ:"
             value: personName,
-            phone: personPhone,
+            phone: personPhone, // (อาจจะไม่มีไอคอน ถ้า phone ว่าง)
             valueColor: primaryText,
           ),
           _buildInfoRow(
-            // ที่อยู่ (ของเรา)
-            label: "ที่อยู่:",
+            // ที่อยู่ผู้รับ
+            label: addressLabel, // "ที่อยู่ส่ง:"
             value: address,
             valueColor: primaryText,
           ),
           _buildInfoRow(
-            // สถานะ
             label: "สถานะ:",
             value: status,
-            valueColor: _getStatusColor(status), // สีตามสถานะ
+            valueColor: _getStatusColor(status),
           ),
-          // --- ส่วนแสดงข้อมูลไรเดอร์ (เรียกใช้ Helper ที่แก้ไขแล้ว) ---
           _buildRiderInfoRow(
-            // *** เรียกใช้ฟังก์ชันที่แก้ไขแล้ว ***
             riderName: riderName,
             riderPhone: riderPhone,
             valueColor: primaryText,
           ),
-          // --- จบส่วนไรเดอร์ ---
           const SizedBox(height: 16),
           ElevatedButton(
-            // ปุ่มดูแผนที่ (ยังไม่ได้ทำ)
             onPressed: () {
-              print("กดดูแผนที่ของ $packageId");
-              // TODO: เพิ่มโค้ดเปิดหน้าแผนที่
+              print("กดดูแผนที่ของ $packageId"); /* TODO */
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.grey[200],
@@ -323,6 +353,7 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
     required String value,
     Color? valueColor,
   }) {
+    // ... (โค้ดเหมือนเดิม) ...
     return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
       child: Row(
@@ -355,6 +386,7 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
     required String phone,
     Color? valueColor,
   }) {
+    // ... (โค้ดเหมือนเดิม) ...
     return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
       child: Row(
@@ -402,12 +434,13 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
     );
   }
 
-  // +++ แก้ไข Helper: แถวข้อมูลสำหรับไรเดอร์โดยเฉพาะ +++
+  // --- Helper: แถวข้อมูลสำหรับไรเดอร์โดยเฉพาะ (เหมือนเดิม) ---
   Widget _buildRiderInfoRow({
     required String riderName,
     required String riderPhone,
     Color? valueColor,
   }) {
+    // ... (โค้ดเหมือนเดิม) ...
     // กรณี: ยังไม่มีไรเดอร์รับงาน (หรือหาข้อมูลไรเดอร์ไม่เจอ)
     if (riderName == 'N/A' ||
         riderName.trim().isEmpty ||
@@ -429,10 +462,10 @@ class _ReceivedItemsPageState extends State<ReceivedItemsPage> {
       );
     }
   }
-  // +++ สิ้นสุด Helper: ไรเดอร์ (ฉบับแก้ไขล่าสุด) +++
 
   // --- Helper: ฟังก์ชันคืนค่าสีตามสถานะ (เหมือนเดิม) ---
   Color _getStatusColor(String status) {
+    // ... (โค้ดเหมือนเดิม) ...
     switch (status.toLowerCase()) {
       case 'pending':
         return Colors.blue.shade700;
